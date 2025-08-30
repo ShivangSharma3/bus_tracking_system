@@ -14,8 +14,21 @@ export function useGoogleMaps(apiKey) {
     // Check if script is already being loaded
     const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
     if (existingScript) {
-      existingScript.addEventListener('load', () => setIsLoaded(true));
-      existingScript.addEventListener('error', () => setError('Failed to load Google Maps'));
+      // Wait for existing script to load
+      const checkLoaded = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkLoaded);
+          setIsLoaded(true);
+        }
+      }, 100);
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkLoaded);
+        if (!window.google || !window.google.maps) {
+          setError('Failed to load Google Maps - timeout');
+        }
+      }, 10000);
       return;
     }
 
@@ -25,25 +38,34 @@ export function useGoogleMaps(apiKey) {
       return;
     }
 
+    loadGoogleMapsScript(apiKey);
+
+  }, [apiKey]);
+
+  const loadGoogleMapsScript = (apiKey) => {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&loading=async`;
+    
+    // Add callback function to handle initialization
+    window.initGoogleMaps = () => {
+      if (window.google && window.google.maps) {
+        setIsLoaded(true);
+        console.log('Google Maps API loaded successfully');
+      } else {
+        setError('Google Maps API failed to initialize properly');
+      }
+    };
+
+    // Add callback parameter to URL
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
 
-    script.onload = () => {
-      setIsLoaded(true);
-    };
-
     script.onerror = () => {
-      setError('Failed to load Google Maps API');
+      setError('Failed to load Google Maps API - Please check your API key and billing setup');
     };
 
     document.head.appendChild(script);
-
-    return () => {
-      // Don't remove script on cleanup to prevent reloading
-    };
-  }, [apiKey]);
+  };
 
   return { isLoaded, error };
 }

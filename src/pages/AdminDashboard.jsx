@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AttendanceDB } from '../utils/attendanceDB.js';
 import { LocationService } from '../utils/locationService.js';
+import { useGoogleMaps } from '../hooks/useGoogleMaps.js';
 import GoogleMap from '../components/GoogleMap.jsx';
+import GoogleMapsError from '../components/GoogleMapsError.jsx';
 
 export default function AdminDashboard() {
   const [students, setStudents] = useState([]);
@@ -12,6 +14,9 @@ export default function AdminDashboard() {
   const [realTimeLocations, setRealTimeLocations] = useState([]);
   const [expandedAttendanceRecord, setExpandedAttendanceRecord] = useState(null);
   const navigate = useNavigate();
+  
+  // Google Maps API
+  const { isLoaded, error } = useGoogleMaps('AIzaSyDRrEGi2nzH-3W2qqhOCFzZuRms5tGeYvI');
 
   const buses = [
     {
@@ -78,7 +83,7 @@ export default function AdminDashboard() {
     };
 
     loadRealTimeLocations();
-    const locationInterval = setInterval(loadRealTimeLocations, 10000); // 10 seconds
+    const locationInterval = setInterval(loadRealTimeLocations, 5000); // 5 seconds for real-time
 
     return () => {
       clearInterval(locationInterval);
@@ -124,6 +129,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen relative">
+      {error && <GoogleMapsError error={error} />}
+      
       {/* Background */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -200,6 +207,82 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Live Map Section - Always Visible */}
+        <div className="mb-10">
+          <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl overflow-hidden border border-white/20">
+            <div className="p-6 bg-gradient-to-r from-orange-500 via-orange-600 to-red-600">
+              <h2 className="text-3xl font-bold text-white mb-4 flex items-center">
+                📍 <span className="ml-3">Live Bus Tracking</span>
+                <div className="ml-auto flex items-center">
+                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                  <span className="text-sm text-green-100">Real-time Updates</span>
+                </div>
+              </h2>
+              <p className="text-orange-100 text-lg">Real-time locations of all buses • Updates every 5 seconds</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  {realTimeLocations.map((location, index) => (
+                    <div key={location.busId || index} className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-blue-800">
+                          {location.busNumber || `BUS-${location.busId?.slice(-3) || '001'}`}
+                        </h4>
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                          <span className="text-xs text-green-600">Live</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-blue-600 mb-1">
+                        Speed: {location.speed ? `${(location.speed * 3.6).toFixed(1)} km/h` : '0 km/h'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Updated: {new Date(location.timestamp || Date.now()).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Map */}
+              <div className="h-96 rounded-xl overflow-hidden border border-gray-200">
+                {isLoaded ? (
+                  <GoogleMap
+                    busLocations={realTimeLocations.map(location => ({
+                      id: location.busId,
+                      lat: location.lat,
+                      lng: location.lng,
+                      busNumber: location.busNumber || `BUS-${location.busId?.slice(-3) || '001'}`,
+                      driver: location.busId === '66d0123456a1b2c3d4e5f601' ? 'Rajesh Kumar' : 'Suresh Singh',
+                      route: location.route || (location.busId === '66d0123456a1b2c3d4e5f601' 
+                        ? 'Route A - City Center to College'
+                        : 'Route B - Airport to College'),
+                      speed: location.speed,
+                      lastUpdate: new Date(location.timestamp || Date.now()).toLocaleTimeString(),
+                      status: 'Active'
+                    }))}
+                    center={realTimeLocations.length > 0 ? 
+                      { lat: realTimeLocations[0].lat, lng: realTimeLocations[0].lng } : 
+                      { lat: 28.6139, lng: 77.2090 }
+                    }
+                    zoom={12}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-gray-100">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                      <p className="text-gray-600 text-lg">Loading Google Maps...</p>
+                      <p className="text-gray-500 text-sm">Please wait while we initialize the map</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="mb-10">
           <div className="flex space-x-3 bg-white/95 backdrop-blur-lg p-3 rounded-2xl shadow-2xl border border-white/20">
@@ -245,7 +328,7 @@ export default function AdminDashboard() {
               }`}
             >
               <span className="text-2xl">📍</span>
-              <span>Real-Time Locations</span>
+              <span>Detailed Locations</span>
             </button>
           </div>
         </div>
@@ -564,6 +647,8 @@ export default function AdminDashboard() {
                             }]}
                             center={{ lat: location.lat, lng: location.lng }}
                             zoom={15}
+                            isAPILoaded={isLoaded}
+                            hasError={!!error}
                           />
                         </div>
 

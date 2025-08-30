@@ -1,81 +1,185 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import FallbackMap from './FallbackMap.jsx';
 
-export default function GoogleMap({ busLocations, selectedBus, center, zoom = 12 }) {
-  const [currentBus, setCurrentBus] = useState(null);
+export default function GoogleMap({ busLocations, selectedBus, center, zoom = 12, isAPILoaded = false, hasError = false }) {
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const [map, setMap] = useState(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
+  // If there's an API error, show fallback
+  if (hasError) {
+    return <FallbackMap busLocations={busLocations} selectedBus={selectedBus} center={center} zoom={zoom} />;
+  }
+
+  // Initialize Google Map
   useEffect(() => {
-    if (busLocations && busLocations.length > 0) {
-      const bus = selectedBus 
-        ? busLocations.find(b => b.id === selectedBus)
-        : busLocations[0];
-      setCurrentBus(bus);
+    if (!isAPILoaded || !window.google || !window.google.maps) {
+      return;
     }
-  }, [busLocations, selectedBus]);
 
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg border border-gray-300 flex items-center justify-center relative overflow-hidden">
-      {/* Map placeholder with bus info */}
-      <div className="absolute inset-0 bg-gradient-to-br from-green-100 via-blue-100 to-purple-100"></div>
-      
-      {/* Grid pattern to simulate map */}
-      <div className="absolute inset-0 opacity-20">
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className="border-b border-gray-300" style={{ height: '5%' }}></div>
-        ))}
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className="absolute border-r border-gray-300 top-0 bottom-0" style={{ left: `${i * 5}%`, width: '1px' }}></div>
-        ))}
-      </div>
+    const mapOptions = {
+      center: center || { lat: 28.6139, lng: 77.2090 },
+      zoom: zoom,
+      styles: [
+        {
+          featureType: 'poi',
+          elementType: 'labels',
+          stylers: [{ visibility: 'off' }]
+        }
+      ],
+      zoomControl: true,
+      mapTypeControl: false,
+      scaleControl: true,
+      streetViewControl: false,
+      rotateControl: false,
+      fullscreenControl: true
+    };
 
-      {/* Bus locations */}
-      <div className="relative z-10 text-center">
-        {currentBus ? (
-          <div className="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/50 max-w-sm">
-            <div className="text-6xl mb-4 animate-bounce">🚌</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">{currentBus.busNumber}</h3>
-            <div className="space-y-2 text-sm text-gray-600">
-              <p><strong>Driver:</strong> {currentBus.driver}</p>
-              <p><strong>Current Location:</strong> {currentBus.name || 'Moving'}</p>
-              <p><strong>Speed:</strong> {currentBus.speed || 0} km/h</p>
-              <p><strong>Next Stop:</strong> {currentBus.nextStop || 'Unknown'}</p>
-              {currentBus.estimatedArrival && (
-                <p><strong>ETA:</strong> {currentBus.estimatedArrival}</p>
-              )}
-              <div className="flex items-center justify-center mt-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                <span className="text-green-600 font-semibold">Live Tracking</span>
+    const googleMap = new window.google.maps.Map(mapRef.current, mapOptions);
+    setMap(googleMap);
+    setIsMapLoaded(true);
+  }, [center, zoom, isAPILoaded]);
+
+  // Update bus markers when locations change
+  useEffect(() => {
+    if (!map || !busLocations) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+
+    // Add new markers for each bus
+    busLocations.forEach((bus, index) => {
+      if (bus.lat && bus.lng) {
+        const position = { lat: bus.lat, lng: bus.lng };
+        
+        // Create custom icon for bus
+        const busIcon = {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="15" fill="${selectedBus === bus.id ? '#3B82F6' : '#10B981'}" stroke="#FFFFFF" stroke-width="2"/>
+              <text x="16" y="20" font-family="Arial, sans-serif" font-size="14" fill="white" text-anchor="middle">🚌</text>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32),
+          anchor: new window.google.maps.Point(16, 16)
+        };
+
+        const marker = new window.google.maps.Marker({
+          position: position,
+          map: map,
+          title: bus.busNumber || `Bus ${bus.id?.slice(-3)}`,
+          icon: busIcon,
+          animation: window.google.maps.Animation.BOUNCE
+        });
+
+        // Create info window with bus details
+        const infoContent = `
+          <div style="padding: 12px; min-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; color: #1F2937; font-size: 16px; font-weight: bold;">
+              🚌 ${bus.busNumber || `Bus ${bus.id?.slice(-3)}`}
+            </h3>
+            <div style="font-size: 14px; color: #4B5563; line-height: 1.5;">
+              <p style="margin: 4px 0;"><strong>Driver:</strong> ${bus.driver || 'Unknown'}</p>
+              <p style="margin: 4px 0;"><strong>Route:</strong> ${bus.route || 'Unknown'}</p>
+              <p style="margin: 4px 0;"><strong>Speed:</strong> ${bus.speed ? `${(bus.speed * 3.6).toFixed(1)} km/h` : '0 km/h'}</p>
+              <p style="margin: 4px 0;"><strong>Last Update:</strong> ${bus.lastUpdate || new Date().toLocaleTimeString()}</p>
+              <div style="margin-top: 8px; display: flex; align-items: center;">
+                <div style="width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; margin-right: 6px;"></div>
+                <span style="color: #10B981; font-weight: 600; font-size: 12px;">Live Tracking</span>
               </div>
             </div>
           </div>
-        ) : (
-          <div className="bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-lg">
-            <div className="text-4xl mb-4">🗺️</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Map View</h3>
-            <p className="text-gray-600">Bus locations will appear here</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Note: Add Google Maps API key for interactive map
-            </p>
-          </div>
-        )}
-      </div>
+        `;
 
-      {/* Floating bus icons for multiple buses */}
-      {busLocations && busLocations.length > 1 && (
-        <div className="absolute top-4 right-4 space-y-2">
-          {busLocations.map((bus, index) => (
-            <div
-              key={bus.id}
-              className={`p-2 rounded-full ${
-                selectedBus === bus.id ? 'bg-blue-500' : 'bg-gray-500'
-              } text-white text-sm shadow-lg transform hover:scale-110 transition-all cursor-pointer`}
-              onClick={() => setCurrentBus(bus)}
-              style={{
-                animationDelay: `${index * 0.5}s`
-              }}
-            >
-              🚌
-            </div>
-          ))}
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: infoContent
+        });
+
+        // Show info window on marker click
+        marker.addListener('click', () => {
+          // Close all other info windows
+          markersRef.current.forEach(m => {
+            if (m.infoWindow) {
+              m.infoWindow.close();
+            }
+          });
+          infoWindow.open(map, marker);
+        });
+
+        // Stop bouncing after 3 seconds
+        setTimeout(() => {
+          marker.setAnimation(null);
+        }, 3000);
+
+        // Store marker and info window reference
+        marker.infoWindow = infoWindow;
+        markersRef.current.push(marker);
+
+        // Auto-open info window for selected bus
+        if (selectedBus === bus.id) {
+          setTimeout(() => {
+            infoWindow.open(map, marker);
+            map.panTo(position);
+          }, 500);
+        }
+      }
+    });
+
+    // Fit map to show all markers if multiple buses
+    if (busLocations.length > 1) {
+      const bounds = new window.google.maps.LatLngBounds();
+      busLocations.forEach(bus => {
+        if (bus.lat && bus.lng) {
+          bounds.extend({ lat: bus.lat, lng: bus.lng });
+        }
+      });
+      map.fitBounds(bounds);
+      
+      // Ensure minimum zoom level
+      const listener = window.google.maps.event.addListener(map, 'idle', () => {
+        if (map.getZoom() > 15) map.setZoom(15);
+        window.google.maps.event.removeListener(listener);
+      });
+    }
+  }, [map, busLocations, selectedBus]);
+
+  // Update map center when center prop changes
+  useEffect(() => {
+    if (map && center) {
+      map.panTo(center);
+    }
+  }, [map, center]);
+
+  if (!isAPILoaded || !window.google || !window.google.maps) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg border border-gray-300 flex items-center justify-center">
+        <div className="text-center p-8">
+          <div className="text-4xl mb-4">🗺️</div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">
+            {!isAPILoaded ? 'Loading Google Maps API...' : 'Initializing Google Maps...'}
+          </h3>
+          <p className="text-gray-600">Please wait while we initialize the map</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full relative">
+      <div 
+        ref={mapRef} 
+        className="w-full h-full rounded-lg"
+        style={{ minHeight: '300px' }}
+      />
+      
+      {!isMapLoaded && (
+        <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center rounded-lg">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading map...</p>
+          </div>
         </div>
       )}
     </div>

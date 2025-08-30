@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGoogleMaps } from '../hooks/useGoogleMaps.js';
 import { LocationService } from '../utils/locationService.js';
 import GoogleMap from '../components/GoogleMap.jsx';
+import GoogleMapsError from '../components/GoogleMapsError.jsx';
 
 export default function StudentDashboard() {
   const [studentData, setStudentData] = useState(null);
@@ -13,7 +14,7 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('location');
   const [studentBusLocation, setStudentBusLocation] = useState(null);
   const navigate = useNavigate();
-  const { isLoaded } = useGoogleMaps('YOUR_GOOGLE_MAPS_API_KEY');
+  const { isLoaded, error } = useGoogleMaps('AIzaSyDRrEGi2nzH-3W2qqhOCFzZuRms5tGeYvI');
 
   // Mock bus locations for real-time simulation
   const busLocations = {
@@ -67,8 +68,8 @@ export default function StudentDashboard() {
     // Initial load
     loadStudentBusLocation();
     
-    // Update every 10 seconds
-    const locationInterval = setInterval(loadStudentBusLocation, 10000);
+    // Update every 5 seconds for real-time experience
+    const locationInterval = setInterval(loadStudentBusLocation, 5000);
 
     // Simulate bus location updates for the old system
     const updateLocation = () => {
@@ -99,6 +100,8 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen relative">
+      {error && <GoogleMapsError error={error} />}
+      
       {/* Background */}
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
@@ -145,7 +148,7 @@ export default function StudentDashboard() {
       </div>
 
       <div className="relative p-6 space-y-8">
-        {/* Tab Navigation */}
+        {/* Tab Navigation for Detailed Views */}
         <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl p-3 border border-white/20">
           <div className="flex space-x-2">
             <button
@@ -157,7 +160,7 @@ export default function StudentDashboard() {
               }`}
             >
               <span>📍</span>
-              <span>My Bus Location</span>
+              <span>Detailed Location</span>
             </button>
             <button
               onClick={() => setActiveTab('profile')}
@@ -168,7 +171,7 @@ export default function StudentDashboard() {
               }`}
             >
               <span>👤</span>
-              <span>Profile</span>
+              <span>Full Profile</span>
             </button>
           </div>
         </div>
@@ -216,6 +219,8 @@ export default function StudentDashboard() {
                         }]}
                         center={{ lat: studentBusLocation.lat, lng: studentBusLocation.lng }}
                         zoom={15}
+                        isAPILoaded={isLoaded}
+                        hasError={!!error}
                       />
                     </div>
 

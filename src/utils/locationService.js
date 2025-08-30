@@ -52,9 +52,9 @@ export class LocationService {
     if (!route) return null;
 
     try {
-      // More realistic movement simulation - updated every 10 seconds
+      // More realistic movement simulation - updated every 5 seconds for real-time feel
       const currentTime = Date.now();
-      const cycleLength = route.length * 10000; // 10 seconds per stop
+      const cycleLength = route.length * 5000; // 5 seconds per stop for faster updates
       const cyclePosition = (currentTime % cycleLength) / cycleLength;
       const totalStops = route.length;
       
@@ -68,15 +68,26 @@ export class LocationService {
       const currentStop = route[currentStopIndex];
       const nextStop = route[nextStopIndex];
       
-      const lat = currentStop.lat + (nextStop.lat - currentStop.lat) * progress;
-      const lng = currentStop.lng + (nextStop.lng - currentStop.lng) * progress;
+      // Add some randomness to make movement more realistic
+      const randomOffset = 0.0001; // Small random offset
+      const latOffset = (Math.random() - 0.5) * randomOffset;
+      const lngOffset = (Math.random() - 0.5) * randomOffset;
+      
+      const lat = currentStop.lat + (nextStop.lat - currentStop.lat) * progress + latOffset;
+      const lng = currentStop.lng + (nextStop.lng - currentStop.lng) * progress + lngOffset;
+      
+      // Vary speed based on progress (slower at stops, faster between stops)
+      const baseSpeed = 30 + Math.sin(progress * Math.PI) * 20; // 10-50 km/h
+      const speedVariation = Math.random() * 10 - 5; // ±5 km/h variation
+      const speed = Math.max(0, baseSpeed + speedVariation);
       
       return {
         lat: parseFloat(lat.toFixed(6)),
         lng: parseFloat(lng.toFixed(6)),
         name: progress < 0.5 ? currentStop.name : nextStop.name,
         timestamp: currentTime,
-        speed: Math.floor(Math.random() * 30) + 25, // 25-55 km/h
+        speed: parseFloat(speed.toFixed(1)),
+        accuracy: Math.floor(Math.random() * 10) + 5, // 5-15 meters accuracy
         heading: this.calculateHeading(currentStop, nextStop),
         nextStop: nextStop.name,
         estimatedArrival: this.getEstimatedArrival(progress, currentStopIndex, totalStops),

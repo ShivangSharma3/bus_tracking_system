@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGoogleMaps } from '../hooks/useGoogleMaps.js';
 import { LocationService } from '../utils/locationService.js';
 import GoogleMap from '../components/GoogleMap.jsx';
+import GoogleMapsError from '../components/GoogleMapsError.jsx';
 
 export default function LiveMap() {
   const [busLocations, setBusLocations] = useState([]);
@@ -30,7 +31,7 @@ export default function LiveMap() {
   ];
 
   useEffect(() => {
-    // Start location updates
+    // Start location updates with faster refresh rate
     const intervalId = LocationService.startLocationUpdates((locations) => {
       const updatedBuses = buses.map(bus => {
         const locationData = locations.find(loc => loc.busId === bus.id);
@@ -39,11 +40,15 @@ export default function LiveMap() {
           lat: locationData?.location?.lat || 28.6139,
           lng: locationData?.location?.lng || 77.2090,
           lastUpdate: new Date().toLocaleTimeString(),
-          speed: locationData?.location?.speed || 0
+          speed: locationData?.location?.speed || 0,
+          accuracy: locationData?.location?.accuracy || 10,
+          heading: locationData?.location?.heading || 0,
+          currentStop: locationData?.location?.currentStop || 'Unknown',
+          nextStop: locationData?.location?.nextStop || 'Unknown'
         };
       });
       setBusLocations(updatedBuses);
-    }, 5000); // Update every 5 seconds
+    }, 3000); // Update every 3 seconds for smooth real-time experience
 
     return () => LocationService.stopLocationUpdates(intervalId);
   }, []);
@@ -73,6 +78,8 @@ export default function LiveMap() {
 
   return (
     <div className="min-h-screen relative">
+      {error && <GoogleMapsError error={error} />}
+      
       {/* Header */}
       <div className="relative bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-200 z-10">
         <div className="px-6 py-4">
@@ -118,10 +125,21 @@ export default function LiveMap() {
                   </div>
                   <p className="text-sm text-gray-600 mb-1">{bus.driver}</p>
                   <p className="text-xs text-gray-500 mb-2">{bus.route}</p>
+                  {bus.currentStop && (
+                    <p className="text-xs text-blue-600 mb-1">📍 {bus.currentStop}</p>
+                  )}
+                  {bus.nextStop && (
+                    <p className="text-xs text-green-600 mb-2">➡️ Next: {bus.nextStop}</p>
+                  )}
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>Speed: {bus.speed || 0} km/h</span>
                     <span>Updated: {bus.lastUpdate}</span>
                   </div>
+                  {bus.accuracy && (
+                    <div className="mt-1 text-xs text-purple-600">
+                      Accuracy: ±{bus.accuracy}m
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -135,6 +153,8 @@ export default function LiveMap() {
             selectedBus={selectedBus}
             center={{ lat: 28.6139, lng: 77.2090 }}
             zoom={12}
+            isAPILoaded={isLoaded}
+            hasError={!!error}
           />
         </div>
       </div>
