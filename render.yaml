@@ -2,11 +2,17 @@ services:
   - type: web
     name: bus-tracking-system
     env: static
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: NODE_VERSION
         value: 18.19.0
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600
     routes:
       - type: rewrite
         source: /*
