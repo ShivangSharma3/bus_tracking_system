@@ -1,15 +1,6 @@
 services:
   - type: web
-    name: bus-tracking-system-static
+    name: bus-tracking-system
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NODE_VERSION
-        value: 18.19.0
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
