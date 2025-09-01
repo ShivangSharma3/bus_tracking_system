@@ -1,6 +1,5 @@
 services:
-  - type: web
+  - type: static
     name: bus-tracking-system
-    env: static
     buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    publishPath: ./dist
