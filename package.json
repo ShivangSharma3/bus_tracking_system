@@ -28,11 +28,11 @@
     "vite": "^4.4.5"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": "18.19.0"
   },
-  "description": "A React-based bus tracking system that allows students to log in and view their bus information.",
-  "keywords": [],
+  "homepage": ".",
+  "description": "A React-based bus tracking system static site",
+  "keywords": ["react", "vite", "static-site"],
   "author": "",
   "license": "ISC"
 }
