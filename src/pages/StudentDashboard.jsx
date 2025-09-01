@@ -6,35 +6,37 @@ import { AttendanceDB } from '../utils/attendanceDB.js';
 import GoogleMap from '../components/GoogleMap.jsx';
 
 // Helper function to get user's current location
-const getUserCurrentLocation = () => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported by this browser'));
-      return;
-    }
+// Note: We no longer use student's GPS location for bus tracking
+// Bus location is determined solely by driver's GPS data
+// const getUserCurrentLocation = () => {
+//   return new Promise((resolve, reject) => {
+//     if (!navigator.geolocation) {
+//       reject(new Error('Geolocation is not supported by this browser'));
+//       return;
+//     }
 
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000 // Cache for 1 minute
-    };
+//     const options = {
+//       enableHighAccuracy: true,
+//       timeout: 10000,
+//       maximumAge: 60000 // Cache for 1 minute
+//     };
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp
-        });
-      },
-      (error) => {
-        reject(error);
-      },
-      options
-    );
-  });
-};
+//     navigator.geolocation.getCurrentPosition(
+//       (position) => {
+//         resolve({
+//           lat: position.coords.latitude,
+//           lng: position.coords.longitude,
+//           accuracy: position.coords.accuracy,
+//           timestamp: position.timestamp
+//         });
+//       },
+//       (error) => {
+//         reject(error);
+//       },
+//       options
+//     );
+//   });
+// };
 
 export default function StudentDashboard() {
   const [studentData, setStudentData] = useState(null);
@@ -54,67 +56,33 @@ export default function StudentDashboard() {
     const student = JSON.parse(localStorage.getItem('studentData') || '{}');
     setStudentData(student);
 
-    // Load student's bus location using real user location for route progress
+    // Load student's bus location using ONLY driver's GPS location
     const loadStudentBusLocation = async () => {
       if (student.bus?.$oid) {
-        // Try to get your actual location first
         let location = null;
         let isRealLocation = false;
-        let locationSource = 'Simulated';
+        let locationSource = 'No GPS Data';
         
-        try {
-          // Get your actual browser location
-          const userLocation = await getUserCurrentLocation();
-          if (userLocation) {
-            console.log('🗺️ Your GPS coordinates:', userLocation);
-            
-            // Debug: Check route data
-            const route = LocationService.busRoutes[student.bus.$oid];
-            console.log('📍 Available bus stops:', route?.map(stop => `${stop.name} (${stop.lat}, ${stop.lng})`));
-            
-            // Use your location with enhanced route calculations
-            const busInfo = LocationService.busInfo[student.bus.$oid];
-            const currentStop = LocationService.getCurrentStop(userLocation.lat, userLocation.lng, student.bus.$oid);
-            const nextStop = LocationService.getNextStop(userLocation.lat, userLocation.lng, student.bus.$oid);
-            const routeProgress = LocationService.getRouteProgress(userLocation.lat, userLocation.lng, student.bus.$oid);
-            
-            console.log('🔍 Enhanced location calculations:', {
-              currentStop,
-              nextStop,
-              routeProgress: routeProgress.percentage + '%',
-              progressStatus: routeProgress.status,
-              details: routeProgress
-            });
-            
-            location = {
-              lat: userLocation.lat,
-              lng: userLocation.lng,
-              currentStop: currentStop,
-              nextStop: nextStop,
-              routeProgress: routeProgress.percentage,
-              progressStatus: routeProgress.status,
-              speed: 0, // Static when using user location
-              accuracy: userLocation.accuracy,
-              timestamp: Date.now(),
-              distanceToCurrentStop: routeProgress.distanceToCurrentStop,
-              distanceToNextStop: routeProgress.distanceToNextStop
-            };
-            isRealLocation = true;
-            locationSource = 'Your Location';
-            console.log('✅ Final location object for route progress:', location);
-            console.log('🔧 Route progress value being set:', routeProgress.percentage);
-            console.log('🎯 Is real location flag:', isRealLocation);
-          }
-        } catch (error) {
-          console.log('Could not get your location, trying driver GPS:', error.message);
+        // Get bus location from driver's GPS ONLY
+        location = LocationService.getRealLocation(student.bus.$oid);
+        if (location) {
+          isRealLocation = true;
+          locationSource = 'Driver GPS';
+          console.log('🚌 Using driver GPS location for bus:', location);
           
-          // Fallback to driver GPS location
-          location = LocationService.getRealLocation(student.bus.$oid);
-          if (location) {
-            isRealLocation = true;
-            locationSource = 'Driver GPS';
-            console.log('Using driver GPS location:', location);
-          }
+          // Debug: Check route data
+          const route = LocationService.busRoutes[student.bus.$oid];
+          console.log('📍 Available bus stops:', route?.map(stop => `${stop.name} (${stop.lat}, ${stop.lng})`));
+          console.log('🔍 Driver location data:', {
+            currentStop: location.currentStop,
+            nextStop: location.nextStop,
+            routeProgress: location.routeProgress + '%',
+            progressStatus: location.progressStatus,
+            lat: location.lat,
+            lng: location.lng
+          });
+        } else {
+          console.log('❌ No driver GPS data available for bus:', student.bus.$oid);
         }
         
         // Final fallback - only if no driver GPS available

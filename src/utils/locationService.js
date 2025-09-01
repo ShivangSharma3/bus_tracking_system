@@ -44,10 +44,10 @@ export class LocationService {
   };
 
   static getCurrentLocation(busId) {
-    // First try to get real GPS location from driver
+    // Only return real GPS location from driver - NO SIMULATION
     const realLocation = this.getRealLocation(busId);
     if (realLocation) {
-      console.log('📍 Using real driver GPS location for admin/student:', realLocation);
+      console.log('📍 Using driver GPS location:', realLocation);
       return {
         lat: realLocation.lat,
         lng: realLocation.lng,
@@ -57,7 +57,7 @@ export class LocationService {
         progressStatus: realLocation.progressStatus,
         speed: realLocation.speed || 0,
         timestamp: new Date(realLocation.timestamp).getTime(),
-        name: realLocation.currentStop || 'Live GPS Location',
+        name: realLocation.currentStop || 'Driver GPS Location',
         lastUpdated: realLocation.timestamp,
         isRealLocation: true,
         locationSource: 'Driver GPS',
@@ -68,8 +68,8 @@ export class LocationService {
       };
     }
 
-    // Fallback - no simulation, return null if no real GPS data
-    console.log('❌ No real GPS data available for bus:', busId);
+    // Return null if no driver GPS data available
+    console.log('❌ No driver GPS data available for bus:', busId);
     return null;
   }
 
@@ -112,7 +112,8 @@ export class LocationService {
   }
 
   static getAllBusLocations() {
-    // Only return real GPS locations, no simulated data
+    // Only return driver GPS locations - no simulated data
+    console.log('📡 Fetching all driver GPS locations...');
     return this.getAllRealLocations();
   }  static startLocationUpdates(callback, interval = 10000) { // Changed to 10 seconds
     // Initial call

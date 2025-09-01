@@ -85,10 +85,13 @@ export default function DriverDashboard() {
 
               setCurrentLocation(location);
               
-              // Send location to LocationService for admin and students to see
+              // 🚌 IMPORTANT: Send driver's GPS location to LocationService 
+              // This makes the bus location available to Admin and Students
+              // Students will see the bus at THIS driver's location, not their own location
               LocationService.updateBusLocation(driverData.busId, location);
               
               setLocationError('');
+              console.log('✅ Driver GPS location updated and sent to students/admin:', location);
             },
             (error) => {
               console.error('Location error:', error);
