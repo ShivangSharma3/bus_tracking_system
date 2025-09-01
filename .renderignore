@@ -1,13 +1,18 @@
-# Ignore development files
+# Development files
 *.md
 eslint.config.js
 .eslintrc.*
 .env*
 .git*
-node_modules/
+yarn.lock
+package-lock.json
+
+# Source files (only dist should be served)
 src/
 backend/
 bus/
+
+# Test files
 *.test.js
 *.spec.js
 test-*
@@ -18,3 +23,11 @@ update-*
 verify-*
 load-*
 final-*
+
+# Node.js files (not needed for static site)
+node_modules/
+.npm
+.yarn
+
+# Build artifacts (will be regenerated)
+dist/
