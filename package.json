@@ -32,7 +32,6 @@
     "npm": ">=8.0.0"
   },
   "description": "A React-based bus tracking system that allows students to log in and view their bus information.",
-  "main": "eslint.config.js",
   "keywords": [],
   "author": "",
   "license": "ISC"

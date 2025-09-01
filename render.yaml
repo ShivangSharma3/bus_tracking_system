@@ -3,11 +3,13 @@ services:
     name: bus-tracking-system
     env: static
     buildCommand: |
+      echo "Building static React app for Render..."
       npm --version
       node --version
       rm -rf node_modules package-lock.json
       npm ci --only=production=false
       npm run build
+      echo "Build completed successfully!"
     staticPublishPath: ./dist
     envVars:
       - key: NPM_CONFIG_PRODUCTION
