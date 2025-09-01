@@ -2,13 +2,20 @@ services:
   - type: web
     name: bus-tracking-system
     env: static
-    buildCommand: npm ci && npm run build
+    buildCommand: |
+      npm --version
+      node --version
+      rm -rf node_modules package-lock.json
+      npm ci --only=production=false
+      npm run build
     staticPublishPath: ./dist
     envVars:
       - key: NPM_CONFIG_PRODUCTION
         value: false
       - key: NODE_VERSION
-        value: 18
+        value: 18.19.0
+      - key: NPM_CONFIG_ENGINE_STRICT
+        value: true
     routes:
       - type: rewrite
         source: /*

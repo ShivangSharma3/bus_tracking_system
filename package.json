@@ -31,7 +31,6 @@
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
-  "packageManager": "npm@9.8.1",
   "description": "A React-based bus tracking system that allows students to log in and view their bus information.",
   "main": "eslint.config.js",
   "keywords": [],
