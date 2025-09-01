@@ -1,0 +1,20 @@
+# Ignore development files
+*.md
+eslint.config.js
+.eslintrc.*
+.env*
+.git*
+node_modules/
+src/
+backend/
+bus/
+*.test.js
+*.spec.js
+test-*
+debug-*
+sample-*
+create-*
+update-*
+verify-*
+load-*
+final-*
