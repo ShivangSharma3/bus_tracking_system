@@ -1,6 +1,15 @@
 services:
-  - type: static
+  - type: web
     name: bus-tracking-system
+    env: node
+    plan: free
     buildCommand: npm install && npm run build
-    publishPath: ./dist
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService: true
+    autoDeploy: true
     pullRequestPreviewsEnabled: false

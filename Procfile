@@ -1,1 +1,2 @@
-# This is intentionally empty - static site only
+web: npm start
+release: npm run build

@@ -6,9 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js",
+    "start:dev": "npm run build && npm start",
+    "test": "echo \"No tests specified\" && exit 0",
+    "postinstall": "npm run build"
   },
   "dependencies": {
+    "compression": "^1.8.1",
+    "express": "^4.21.2",
+    "helmet": "^7.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
@@ -28,11 +35,21 @@
     "vite": "^4.4.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "homepage": ".",
-  "description": "A React-based bus tracking system static site",
-  "keywords": ["react", "vite", "static-site"],
+  "description": "A React-based bus tracking system with real-time GPS tracking and attendance management",
+  "keywords": [
+    "react",
+    "vite",
+    "bus-tracking",
+    "gps",
+    "attendance",
+    "real-time",
+    "express",
+    "web-service"
+  ],
   "author": "",
   "license": "ISC"
 }
