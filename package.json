@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "echo 'This is a static site - use npm run build instead' && exit 1"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -33,6 +34,8 @@
   "homepage": ".",
   "description": "A React-based bus tracking system static site",
   "keywords": ["react", "vite", "static-site"],
+  "buildpack": "static",
+  "heroku-prebuild": "echo 'Static site - no prebuild needed'",
   "author": "",
   "license": "ISC"
 }
