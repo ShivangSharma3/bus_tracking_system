@@ -250,16 +250,21 @@ export class BackgroundLocationManager {
   // Enhance location data with route information
   static async enhanceLocationData(locationData) {
     try {
-      // Get bus route information
-      const routeProgress = LocationService.getRouteProgress(locationData.lat, locationData.lng, locationData.busId);
-      const currentStop = LocationService.getCurrentStop(locationData.lat, locationData.lng, locationData.busId);
-      const nextStop = LocationService.getNextStop(locationData.lat, locationData.lng, locationData.busId);
+      // Get bus route information with time-based routing
+      const currentTimeOfDay = LocationService.getCurrentTimeOfDay();
+      const routeProgress = LocationService.getRouteProgress(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
+      const currentStop = LocationService.getCurrentStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
+      const nextStop = LocationService.getNextStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
       const busInfo = LocationService.busInfo[locationData.busId] || {};
+      const routeInfo = LocationService.getRouteInfo(locationData.busId, currentTimeOfDay);
       
       return {
         ...locationData,
         busNumber: busInfo.busNumber,
-        route: busInfo.route,
+        route: routeInfo ? routeInfo.route : busInfo.route,
+        timeOfDay: currentTimeOfDay,
+        direction: routeInfo ? routeInfo.direction : '🚌 Bus Route',
+        routeIcon: routeInfo ? routeInfo.icon : '🚌',
         currentStop: currentStop,
         nextStop: nextStop,
         routeProgress: routeProgress.percentage,

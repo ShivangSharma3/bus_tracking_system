@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time-Based Routing Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .result { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .morning { border-left: 5px solid #4CAF50; }
+        .evening { border-left: 5px solid #FF9800; }
+        .current { background: #e3f2fd; border: 2px solid #2196F3; }
+        h1 { color: #333; text-align: center; }
+        h3 { margin-top: 0; color: #555; }
+        .stops { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Time-Based Routing System Test</h1>
+        <p style="text-align: center; color: #666;">
+            Testing morning/evening route switching based on time of day
+        </p>
+        
+        <div id="results"></div>
+    </div>
+    
+    <script>
+        // Time-based routing logic (same as LocationService)
+        function getCurrentTimeOfDay(hour = null) {
+            const testHour = hour || new Date().getHours();
+            // Morning: 6 AM to 2 PM (6-14)
+            // Evening: 2 PM to 10 PM (14-22)
+            if (testHour >= 6 && testHour < 14) return 'morning';
+            else if (testHour >= 14 && testHour < 22) return 'evening';
+            else return 'morning'; // Default
+        }
+        
+        function getRouteInfo(timeOfDay) {
+            if (timeOfDay === 'evening') {
+                return {
+                    timeOfDay: 'evening',
+                    route: 'MIET Campus to Home',
+                    direction: '🏫➡️🏠 Campus to Home',
+                    icon: '🌆',
+                    stops: ['MIET Campus', 'rohta bypass', 'Meerut Cantt', 'modipuram']
+                };
+            } else {
+                return {
+                    timeOfDay: 'morning',
+                    route: 'Home to MIET Campus',
+                    direction: '🏠➡️🏫 Home to Campus',
+                    icon: '🌅',
+                    stops: ['modipuram', 'Meerut Cantt', 'rohta bypass', 'MIET Campus']
+                };
+            }
+        }
+        
+        const resultsDiv = document.getElementById('results');
+        
+        // Show current time test
+        const currentTime = new Date();
+        const currentTimeOfDay = getCurrentTimeOfDay();
+        const currentRouteInfo = getRouteInfo(currentTimeOfDay);
+        
+        resultsDiv.innerHTML += `
+            <div class="result ${currentTimeOfDay} current">
+                <h3>🕐 Current Time: ${currentTime.toLocaleTimeString()} (${currentTime.getHours()}:${currentTime.getMinutes().toString().padStart(2, '0')})</h3>
+                <p><strong>Active Time Period:</strong> ${currentRouteInfo.timeOfDay.toUpperCase()}</p>
+                <p><strong>Direction:</strong> ${currentRouteInfo.direction}</p>
+                <p><strong>Route:</strong> ${currentRouteInfo.route}</p>
+                <div class="stops"><strong>Route Sequence:</strong> ${currentRouteInfo.stops.join(' → ')}</div>
+            </div>
+        `;
+        
+        // Test different hours throughout the day
+        const testHours = [
+            { hour: 6, label: '6:00 AM' },
+            { hour: 8, label: '8:00 AM' },
+            { hour: 12, label: '12:00 PM' },
+            { hour: 13, label: '1:00 PM' },
+            { hour: 14, label: '2:00 PM' },
+            { hour: 15, label: '3:00 PM' },
+            { hour: 18, label: '6:00 PM' },
+            { hour: 21, label: '9:00 PM' },
+            { hour: 22, label: '10:00 PM' },
+            { hour: 23, label: '11:00 PM' },
+            { hour: 2, label: '2:00 AM' }
+        ];
+        
+        resultsDiv.innerHTML += '<h2 style="margin-top: 30px; color: #333;">📅 24-Hour Route Testing</h2>';
+        
+        testHours.forEach(({ hour, label }) => {
+            const timeOfDay = getCurrentTimeOfDay(hour);
+            const routeInfo = getRouteInfo(timeOfDay);
+            const isCurrent = hour === currentTime.getHours();
+            
+            resultsDiv.innerHTML += `
+                <div class="result ${timeOfDay} ${isCurrent ? 'current' : ''}">
+                    <h3>${routeInfo.icon} ${label} - ${timeOfDay.toUpperCase()}</h3>
+                    <p><strong>Direction:</strong> ${routeInfo.direction}</p>
+                    <p><strong>Route:</strong> ${routeInfo.route}</p>
+                    <div class="stops"><strong>Stops:</strong> ${routeInfo.stops.join(' → ')}</div>
+                    ${isCurrent ? '<p style="color: #2196F3; font-weight: bold;">🔥 CURRENTLY ACTIVE</p>' : ''}
+                </div>
+            `;
+        });
+        
+        // Add summary
+        resultsDiv.innerHTML += `
+            <div class="result" style="background: #f0f8ff; border: 2px solid #2196F3; margin-top: 30px;">
+                <h3>✅ Time-Based Routing Summary</h3>
+                <ul>
+                    <li><strong>Morning (6 AM - 2 PM):</strong> 🏠➡️🏫 Students travel from home to campus</li>
+                    <li><strong>Evening (2 PM - 10 PM):</strong> 🏫➡️🏠 Students travel from campus to home</li>
+                    <li><strong>Off-hours (10 PM - 6 AM):</strong> Defaults to morning route</li>
+                    <li><strong>Route Direction:</strong> Automatically reverses based on time</li>
+                    <li><strong>Visual Indicators:</strong> Morning 🌅 | Evening 🌆</li>
+                </ul>
+            </div>
+        `;
+        
+        console.log('✅ Time-based routing test complete!');
+        console.log('🔍 Current settings:');
+        console.log('   Time:', currentTime.toLocaleTimeString());
+        console.log('   Period:', currentRouteInfo.timeOfDay);
+        console.log('   Direction:', currentRouteInfo.direction);
+    </script>
+</body>
+</html>

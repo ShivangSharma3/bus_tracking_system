@@ -353,15 +353,20 @@ export class BackgroundLocationManager {
     // Import LocationService dynamically to avoid circular dependencies
     const { LocationService } = await import('./locationService.js');
     
-    const routeProgress = LocationService.getRouteProgress(locationData.lat, locationData.lng, locationData.busId);
-    const currentStop = LocationService.getCurrentStop(locationData.lat, locationData.lng, locationData.busId);
-    const nextStop = LocationService.getNextStop(locationData.lat, locationData.lng, locationData.busId);
+    const currentTimeOfDay = LocationService.getCurrentTimeOfDay();
+    const routeProgress = LocationService.getRouteProgress(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
+    const currentStop = LocationService.getCurrentStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
+    const nextStop = LocationService.getNextStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
     const busInfo = LocationService.busInfo[locationData.busId] || {};
+    const routeInfo = LocationService.getRouteInfo(locationData.busId, currentTimeOfDay);
     
     return {
       ...locationData,
       busNumber: busInfo.busNumber || `BUS-${locationData.busId.slice(-3)}`,
-      route: busInfo.route || 'Unknown Route',
+      route: routeInfo ? routeInfo.route : (busInfo.route || 'Unknown Route'),
+      timeOfDay: currentTimeOfDay,
+      direction: routeInfo ? routeInfo.direction : '🚌 Bus Route',
+      routeIcon: routeInfo ? routeInfo.icon : '🚌',
       currentStop: currentStop,
       nextStop: nextStop,
       routeProgress: routeProgress.percentage,

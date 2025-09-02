@@ -1,27 +1,56 @@
 export class LocationService {
-  static busRoutes = {
+  // Morning Routes: Home to Campus (Students boarding from home areas to college)
+  static morningRoutes = {
     '66d0123456a1b2c3d4e5f601': [
-      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus' },
-      { lat: 28.9954, lng: 77.6456, name: 'rohta bypass' }, // Updated to your actual location
+      { lat: 29.0661, lng: 77.7104, name: 'modipuram' }, // Start from home area
       { lat: 28.9938, lng: 77.6822, name: 'Meerut Cantt' },
-      { lat: 29.0661, lng: 77.7104, name: 'modipuram' }
+      { lat: 28.9954, lng: 77.6456, name: 'rohta bypass' },
+      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus' } // End at campus
     ],
     '66d0123456a1b2c3d4e5f602': [
-      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus, Meerut' },
+      { lat: 28.6304, lng: 77.2177, name: 'Connaught Place, Delhi' }, // Start from home area
+      { lat: 28.6477, lng: 77.3145, name: 'ISBT Anand Vihar' },
+      { lat: 28.61, lng: 77.23, name: 'Delhi Border' },
+      { lat: 28.6692, lng: 77.4538, name: 'Ghaziabad' },
+      { lat: 28.9938, lng: 77.6822, name: 'Meerut Cantt' },
+      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus, Meerut' } // End at campus
+    ]
+  };
+
+  // Evening Routes: Campus to Home (Students boarding from college to home areas)
+  static eveningRoutes = {
+    '66d0123456a1b2c3d4e5f601': [
+      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus' }, // Start from campus
+      { lat: 28.9954, lng: 77.6456, name: 'rohta bypass' },
+      { lat: 28.9938, lng: 77.6822, name: 'Meerut Cantt' },
+      { lat: 29.0661, lng: 77.7104, name: 'modipuram' } // End at home area
+    ],
+    '66d0123456a1b2c3d4e5f602': [
+      { lat: 28.9730, lng: 77.6410, name: 'MIET Campus, Meerut' }, // Start from campus
       { lat: 28.9938, lng: 77.6822, name: 'Meerut Cantt' },
       { lat: 28.6692, lng: 77.4538, name: 'Ghaziabad' },
       { lat: 28.61, lng: 77.23, name: 'Delhi Border' },
       { lat: 28.6477, lng: 77.3145, name: 'ISBT Anand Vihar' },
-      { lat: 28.6304, lng: 77.2177, name: 'Connaught Place, Delhi' }
+      { lat: 28.6304, lng: 77.2177, name: 'Connaught Place, Delhi' } // End at home area
     ]
   };
+
+  // Legacy busRoutes for backward compatibility (defaults to morning route)
+  static busRoutes = this.morningRoutes;
 
   static busInfo = {
     '66d0123456a1b2c3d4e5f601': {
       busNumber: 'BUS-001',
-      route: 'MIET to Muzaffarnagar',
+      morningRoute: 'Home to MIET Campus',
+      eveningRoute: 'MIET Campus to Home',
       driver: 'Rajesh Kumar',
-      stops: [
+      morningStops: [
+        'modipuram',
+        'Meerut Cantt', 
+        'rohta bypass',
+        'MIET Campus'
+      ],
+      eveningStops: [
         'MIET Campus',
         'rohta bypass', 
         'Meerut Cantt',
@@ -30,9 +59,18 @@ export class LocationService {
     },
     '66d0123456a1b2c3d4e5f602': {
       busNumber: 'BUS-002',
-      route: 'MIET to Delhi',
+      morningRoute: 'Delhi to MIET Campus',
+      eveningRoute: 'MIET Campus to Delhi',
       driver: 'Suresh Singh',
-      stops: [
+      morningStops: [
+        'Connaught Place',
+        'ISBT Anand Vihar',
+        'Delhi Border',
+        'Ghaziabad',
+        'Meerut Cantt',
+        'MIET Campus'
+      ],
+      eveningStops: [
         'MIET Campus',
         'Meerut Cantt',
         'Ghaziabad', 
@@ -42,6 +80,60 @@ export class LocationService {
       ]
     }
   };
+
+  // NEW: Determine current time of day for route selection
+  static getCurrentTimeOfDay() {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    // Morning: 6 AM to 2 PM (6-14)
+    // Evening: 2 PM to 10 PM (14-22)
+    if (hour >= 6 && hour < 14) {
+      return 'morning';
+    } else if (hour >= 14 && hour < 22) {
+      return 'evening';
+    } else {
+      // Late night/early morning - default to morning
+      return 'morning';
+    }
+  }
+
+  // NEW: Get current route based on time of day
+  static getCurrentRoute(busId, timeOfDay = null) {
+    const selectedTimeOfDay = timeOfDay || this.getCurrentTimeOfDay();
+    
+    if (selectedTimeOfDay === 'evening') {
+      return this.eveningRoutes[busId] || [];
+    } else {
+      return this.morningRoutes[busId] || [];
+    }
+  }
+
+  // NEW: Get route info with time context
+  static getRouteInfo(busId, timeOfDay = null) {
+    const selectedTimeOfDay = timeOfDay || this.getCurrentTimeOfDay();
+    const busInfo = this.busInfo[busId];
+    
+    if (!busInfo) return null;
+
+    if (selectedTimeOfDay === 'evening') {
+      return {
+        timeOfDay: 'evening',
+        route: busInfo.eveningRoute,
+        stops: busInfo.eveningStops,
+        direction: '🏫➡️🏠 Campus to Home',
+        icon: '🌆'
+      };
+    } else {
+      return {
+        timeOfDay: 'morning',
+        route: busInfo.morningRoute, 
+        stops: busInfo.morningStops,
+        direction: '🏠➡️🏫 Home to Campus',
+        icon: '🌅'
+      };
+    }
+  }
 
   static getCurrentLocation(busId) {
     // Only return real GPS location from driver - NO SIMULATION
@@ -307,20 +399,25 @@ export class LocationService {
 
       console.log('✅ ACCEPTED: Valid driver GPS location from:', locationData.driverName);
 
-      // Get bus info
+      // Get bus info and route info based on current time
       const busInfo = this.busInfo[locationData.busId] || {};
+      const routeInfo = this.getRouteInfo(locationData.busId, currentTimeOfDay);
       
-      // Calculate enhanced route information
-      const routeProgress = this.getRouteProgress(locationData.lat, locationData.lng, locationData.busId);
+      // Calculate enhanced route information with time-based routing
+      const currentTimeOfDay = this.getCurrentTimeOfDay();
+      const routeProgress = this.getRouteProgress(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay);
       
       // Enhanced location data with route information - DRIVER GPS ONLY
       const enhancedLocationData = {
         ...locationData,
         busNumber: busInfo.busNumber,
-        route: busInfo.route,
-        stops: busInfo.stops,
-        currentStop: this.getCurrentStop(locationData.lat, locationData.lng, locationData.busId),
-        nextStop: this.getNextStop(locationData.lat, locationData.lng, locationData.busId),
+        route: routeInfo ? routeInfo.route : busInfo.route,
+        stops: routeInfo ? routeInfo.stops : busInfo.stops,
+        timeOfDay: currentTimeOfDay,
+        direction: routeInfo ? routeInfo.direction : '🚌 Bus Route',
+        routeIcon: routeInfo ? routeInfo.icon : '🚌',
+        currentStop: this.getCurrentStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay),
+        nextStop: this.getNextStop(locationData.lat, locationData.lng, locationData.busId, currentTimeOfDay),
         routeProgress: routeProgress.percentage,
         progressStatus: routeProgress.status,
         distanceToCurrentStop: routeProgress.distanceToCurrentStop,
@@ -383,9 +480,9 @@ export class LocationService {
     }
   }
 
-  static getCurrentStop(lat, lng, busId) {
-    const route = this.busRoutes[busId];
-    if (!route) return 'Unknown Location';
+  static getCurrentStop(lat, lng, busId, timeOfDay = null) {
+    const route = this.getCurrentRoute(busId, timeOfDay);
+    if (!route || route.length === 0) return 'Unknown Location';
 
     let closestStopIndex = 0;
     let minDistance = this.calculateDistance(lat, lng, route[0].lat, route[0].lng);
@@ -436,9 +533,9 @@ export class LocationService {
     }
   }
 
-  static getNextStop(lat, lng, busId) {
-    const route = this.busRoutes[busId];
-    if (!route) return 'Unknown';
+  static getNextStop(lat, lng, busId, timeOfDay = null) {
+    const route = this.getCurrentRoute(busId, timeOfDay);
+    if (!route || route.length === 0) return 'Unknown';
 
     let closestStopIndex = 0;
     let minDistance = this.calculateDistance(lat, lng, route[0].lat, route[0].lng);
@@ -479,9 +576,9 @@ export class LocationService {
     return 'Final Destination';
   }
 
-  static getRouteProgress(lat, lng, busId) {
-    const route = this.busRoutes[busId];
-    if (!route) return { completed: 0, total: 0, percentage: 0, status: 'unknown' };
+  static getRouteProgress(lat, lng, busId, timeOfDay = null) {
+    const route = this.getCurrentRoute(busId, timeOfDay);
+    if (!route || route.length === 0) return { completed: 0, total: 0, percentage: 0, status: 'unknown' };
 
     let closestStopIndex = 0;
     let minDistance = this.calculateDistance(lat, lng, route[0].lat, route[0].lng);
@@ -624,7 +721,7 @@ export class LocationService {
   static calculateDistance(lat1, lng1, lat2, lng2) {
     const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const dLng = (lng2 - lat1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLng/2) * Math.sin(dLng/2);
@@ -727,18 +824,23 @@ export class LocationService {
 
   static updateBusLocation(busId, location) {
     try {
-      // Get enhanced location data with route calculations
-      const routeProgress = this.getRouteProgress(location.lat, location.lng, busId);
-      const currentStop = this.getCurrentStop(location.lat, location.lng, busId);
-      const nextStop = this.getNextStop(location.lat, location.lng, busId);
+      // Get enhanced location data with route calculations using time-based routing
+      const currentTimeOfDay = this.getCurrentTimeOfDay();
+      const routeProgress = this.getRouteProgress(location.lat, location.lng, busId, currentTimeOfDay);
+      const currentStop = this.getCurrentStop(location.lat, location.lng, busId, currentTimeOfDay);
+      const nextStop = this.getNextStop(location.lat, location.lng, busId, currentTimeOfDay);
       const busInfo = this.busInfo[busId] || {};
+      const routeInfo = this.getRouteInfo(busId, currentTimeOfDay);
       
       // Create enhanced location object
       const enhancedLocation = {
         ...location,
         busId,
         busNumber: busInfo.busNumber || `BUS-${busId.slice(-3)}`,
-        route: busInfo.route || 'Unknown Route',
+        route: routeInfo ? routeInfo.route : (busInfo.route || 'Unknown Route'),
+        timeOfDay: currentTimeOfDay,
+        direction: routeInfo ? routeInfo.direction : '🚌 Bus Route',
+        routeIcon: routeInfo ? routeInfo.icon : '🚌',
         driverName: busInfo.driver || location.driverName || 'Unknown Driver',
         currentStop: currentStop,
         nextStop: nextStop,

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 Distance Information Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+        .distance-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .distance-card {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .current-stop { border-left: 4px solid #3b82f6; }
+        .next-stop { border-left: 4px solid #10b981; }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #3730a3; }
+        .results {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-family: monospace;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Distance Information Display Test</h1>
+        <p>Testing the new distance display feature showing how far the bus is from current and next stops.</p>
+
+        <div class="test-section">
+            <h2>✅ What's New</h2>
+            <ul class="feature-list">
+                <li>📍 <strong>Distance to Current Stop:</strong> Shows how far the bus is from the current/closest stop</li>
+                <li>🎯 <strong>Distance to Next Stop:</strong> Shows how far the bus is from the next stop in the route</li>
+                <li>📏 <strong>Smart Units:</strong> Displays in meters (< 1km) or kilometers (≥ 1km)</li>
+                <li>🎨 <strong>Visual Design:</strong> Color-coded cards with icons for easy identification</li>
+                <li>📱 <strong>Responsive Layout:</strong> Grid layout that adapts to different screen sizes</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Test Locations</h2>
+            <p>Click these buttons to simulate the bus at different locations and see the distance calculations:</p>
+            
+            <button onclick="testLocation('campus', 28.9730, 77.6410)">🏫 At MIET Campus</button>
+            <button onclick="testLocation('rohta', 28.9954, 77.6456)">🛤️ At Rohta Bypass</button>
+            <button onclick="testLocation('meerut', 28.9938, 77.6822)">🚉 At Meerut Cantt</button>
+            <button onclick="testLocation('modipuram', 29.0661, 77.7104)">🏘️ At Modipuram</button>
+            <button onclick="testLocation('between', 28.9946, 77.6639)">🚗 Between Stops</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Distance Calculation Results</h2>
+            <div id="locationResults" class="results">
+                Click a test location button above to see distance calculations...
+            </div>
+            
+            <div id="distanceDisplay" class="distance-info" style="display: none;">
+                <div class="distance-card current-stop">
+                    <div style="font-size: 24px;">📍</div>
+                    <div style="font-weight: bold; margin: 5px 0;">Distance to Current Stop</div>
+                    <div id="currentDistance" style="font-size: 18px; color: #3b82f6;">-</div>
+                </div>
+                <div class="distance-card next-stop">
+                    <div style="font-size: 24px;">🎯</div>
+                    <div style="font-weight: bold; margin: 5px 0;">Distance to Next Stop</div>
+                    <div id="nextDistance" style="font-size: 18px; color: #10b981;">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 How to Test in Student Dashboard</h2>
+            <ol>
+                <li><strong>Login as Student:</strong> Use amit@example.com / password1</li>
+                <li><strong>Start Driver GPS:</strong> Login as driver and enable GPS tracking</li>
+                <li><strong>View Distance Info:</strong> Student dashboard will show distance cards</li>
+                <li><strong>Real-time Updates:</strong> Distance updates every 3 seconds as bus moves</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>🎨 UI Features</h2>
+            <ul class="feature-list">
+                <li>🔵 <strong>Blue Card:</strong> Distance to current stop with pin icon (📍)</li>
+                <li>🟢 <strong>Green Card:</strong> Distance to next stop with target icon (🎯)</li>
+                <li>📏 <strong>Smart Formatting:</strong> Shows "150m" for short distances, "2.34km" for longer ones</li>
+                <li>📱 <strong>Responsive Grid:</strong> Two columns on desktop, stacks on mobile</li>
+                <li>✨ <strong>Conditional Display:</strong> Only shows when distance data is available</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Mock route data
+        const route = [
+            { lat: 28.9730, lng: 77.6410, name: 'MIET Campus' },
+            { lat: 28.9954, lng: 77.6456, name: 'rohta bypass' },
+            { lat: 28.9938, lng: 77.6822, name: 'Meerut Cantt' },
+            { lat: 29.0661, lng: 77.7104, name: 'modipuram' }
+        ];
+
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function testLocation(locationName, lat, lng) {
+            const resultsDiv = document.getElementById('locationResults');
+            const distanceDisplay = document.getElementById('distanceDisplay');
+            const currentDistanceDiv = document.getElementById('currentDistance');
+            const nextDistanceDiv = document.getElementById('nextDistance');
+
+            // Find closest stop and next stop
+            let closestStopIndex = 0;
+            let minDistance = calculateDistance(lat, lng, route[0].lat, route[0].lng);
+
+            route.forEach((stop, index) => {
+                const distance = calculateDistance(lat, lng, stop.lat, stop.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestStopIndex = index;
+                }
+            });
+
+            const closestStop = route[closestStopIndex];
+            const nextStopIndex = closestStopIndex + 1;
+            const nextStop = nextStopIndex < route.length ? route[nextStopIndex] : null;
+
+            const distanceToNext = nextStop ? calculateDistance(lat, lng, nextStop.lat, nextStop.lng) : null;
+
+            // Format distances
+            const formatDistance = (distance) => {
+                if (distance < 1) {
+                    return `${(distance * 1000).toFixed(0)}m`;
+                } else {
+                    return `${distance.toFixed(2)}km`;
+                }
+            };
+
+            // Update results
+            resultsDiv.innerHTML = `
+                <strong>🧪 Testing Location: ${locationName.toUpperCase()}</strong><br>
+                📍 Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}<br><br>
+                
+                <strong>🎯 Closest Stop:</strong> ${closestStop.name}<br>
+                <strong>📏 Distance to Current:</strong> ${formatDistance(minDistance)}<br><br>
+                
+                ${nextStop ? `
+                    <strong>➡️ Next Stop:</strong> ${nextStop.name}<br>
+                    <strong>📏 Distance to Next:</strong> ${formatDistance(distanceToNext)}<br>
+                ` : '<strong>🏁 Final destination reached</strong><br>'}
+                
+                <br><strong>✅ This data would appear in the Student Dashboard distance cards</strong>
+            `;
+
+            // Update distance display
+            currentDistanceDiv.textContent = formatDistance(minDistance);
+            nextDistanceDiv.textContent = nextStop ? formatDistance(distanceToNext) : 'Final Stop';
+            distanceDisplay.style.display = 'grid';
+        }
+
+        // Auto-test with campus location on load
+        setTimeout(() => testLocation('campus', 28.9730, 77.6410), 1000);
+    </script>
+</body>
+</html>

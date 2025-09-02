@@ -378,6 +378,74 @@ export default function StudentDashboard() {
                             <strong>ETA to Next Stop:</strong> {studentBusLocation.estimatedArrival}
                           </p>
                         )}
+                        
+                        {/* Distance Information */}
+                        {(studentBusLocation.distanceToCurrentStop !== undefined || studentBusLocation.distanceToNextStop !== undefined) && (
+                          <div className="mt-3 pt-3 border-t border-blue-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              {studentBusLocation.distanceToCurrentStop !== undefined && (
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-lg">📍</span>
+                                    <div>
+                                      <p className="text-xs font-semibold text-blue-800">Distance to Current Stop</p>
+                                      <p className="text-sm font-bold text-blue-600">
+                                        {studentBusLocation.distanceToCurrentStop < 1 
+                                          ? `${(studentBusLocation.distanceToCurrentStop * 1000).toFixed(0)}m`
+                                          : `${studentBusLocation.distanceToCurrentStop.toFixed(2)}km`
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {studentBusLocation.distanceToNextStop !== undefined && studentBusLocation.distanceToNextStop !== null && (
+                                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-lg">🎯</span>
+                                    <div>
+                                      <p className="text-xs font-semibold text-green-800">Distance to Next Stop</p>
+                                      <p className="text-sm font-bold text-green-600">
+                                        {studentBusLocation.distanceToNextStop < 1 
+                                          ? `${(studentBusLocation.distanceToNextStop * 1000).toFixed(0)}m`
+                                          : `${studentBusLocation.distanceToNextStop.toFixed(2)}km`
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Time-based Route Information */}
+                        {(studentBusLocation.timeOfDay || studentBusLocation.direction) && (
+                          <div className="mt-3 pt-3 border-t border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-lg">
+                                  {studentBusLocation.routeIcon || (studentBusLocation.timeOfDay === 'evening' ? '🌆' : '🌅')}
+                                </span>
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-700">
+                                    {studentBusLocation.timeOfDay === 'evening' ? 'Evening Route' : 'Morning Route'}
+                                  </p>
+                                  <p className="text-xs text-gray-600">
+                                    {studentBusLocation.direction || (studentBusLocation.timeOfDay === 'evening' ? '🏫➡️🏠 Campus to Home' : '🏠➡️🏫 Home to Campus')}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                studentBusLocation.timeOfDay === 'evening' 
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {studentBusLocation.timeOfDay === 'evening' ? 'Evening' : 'Morning'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Route Progress - Horizontal Train Style */}
@@ -576,6 +644,11 @@ export default function StudentDashboard() {
                         <div className="mt-6 flex justify-between items-center text-sm">
                           <div className="text-gray-600">
                             <strong>Route:</strong> {studentBusLocation?.route || 'MIET to Muzaffarnagar'}
+                            {(studentBusLocation?.timeOfDay || studentBusLocation?.direction) && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {studentBusLocation.direction || (studentBusLocation.timeOfDay === 'evening' ? '🏫➡️🏠 Campus to Home' : '🏠➡️🏫 Home to Campus')}
+                              </div>
+                            )}
                           </div>
                           <div className="text-blue-600">
                             <strong>Progress:</strong> {(() => {
