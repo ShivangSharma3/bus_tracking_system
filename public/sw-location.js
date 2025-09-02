@@ -50,6 +50,18 @@ self.addEventListener('message', (event) => {
         });
       });
       break;
+
+    case 'ACTIVATE_AGGRESSIVE_MODE':
+      console.log('🚀 Service Worker: Activating aggressive background mode');
+      currentDriverData = data;
+      activateAggressiveBackgroundTracking();
+      break;
+
+    case 'UPDATE_LOCATION':
+      console.log('📍 Service Worker: Received location update from main thread');
+      lastKnownLocation = data;
+      sendLocationUpdate(data, 'main_thread_update');
+      break;
   }
 });
 
@@ -75,6 +87,47 @@ function startEnhancedBackgroundTracking() {
   storeTrackingState(true);
 }
 
+// Activate aggressive background tracking for when app is minimized/switched
+function activateAggressiveBackgroundTracking() {
+  console.log('🚀 Service Worker: Activating aggressive background tracking mode');
+  
+  if (!currentDriverData) return;
+  
+  // Stop normal tracking
+  if (locationTrackingInterval) {
+    clearInterval(locationTrackingInterval);
+    locationTrackingInterval = null;
+  }
+  
+  if (continuousTrackingInterval) {
+    clearInterval(continuousTrackingInterval);
+    continuousTrackingInterval = null;
+  }
+  
+  // Start aggressive tracking with faster intervals
+  console.log('📍 Starting aggressive tracking with 3-second intervals');
+  
+  // Immediate capture
+  trackLocationWithRetry();
+  
+  // Aggressive primary tracking (every 3 seconds)
+  locationTrackingInterval = setInterval(() => {
+    console.log('📍 Aggressive SW tracking (3s interval)');
+    trackLocationWithRetry();
+  }, 3000);
+  
+  // Aggressive continuous tracking (every 2 seconds)
+  continuousTrackingInterval = setInterval(() => {
+    console.log('📍 Aggressive SW continuous (2s interval)');
+    trackLocationContinuous();
+  }, 2000);
+  
+  // Set aggressive mode flag
+  isTracking = true;
+  
+  console.log('✅ Aggressive background tracking activated with 2-3 second intervals');
+}
+
 function stopBackgroundTracking() {
   isTracking = false;
   
@@ -97,30 +150,31 @@ function stopBackgroundTracking() {
 
 // Enhanced location tracking with retry mechanism
 function trackLocationWithRetry() {
-  if (!navigator.geolocation || !currentDriverData) {
-    console.log('❌ Geolocation not available or no driver data');
+  if (!navigator.geolocation) {
+    console.error('❌ Geolocation not available in service worker context');
     return;
   }
-  
+
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      processLocationUpdate(position, 'service_worker_primary');
       failureCount = 0; // Reset failure count on success
-      processLocationUpdate(position, 'primary');
     },
     (error) => {
       failureCount++;
-      console.error(`❌ Primary GPS error (${failureCount}/${MAX_FAILURES}):`, error.message);
+      console.error(`❌ Service worker GPS error (${failureCount}/${MAX_FAILURES}):`, error.message);
       
-      // If we have a last known location and failures are under threshold, use it
-      if (lastKnownLocation && failureCount < MAX_FAILURES) {
-        console.log('📍 Using last known location due to GPS error');
-        sendLocationUpdate(lastKnownLocation, 'fallback');
+      if (failureCount >= MAX_FAILURES) {
+        console.warn('⚠️ Max GPS failures reached, using last known location');
+        if (lastKnownLocation) {
+          sendLocationUpdate(lastKnownLocation, 'last_known_fallback');
+        }
       }
     },
     {
       enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 10000
+      timeout: 10000,
+      maximumAge: 30000
     }
   );
 }

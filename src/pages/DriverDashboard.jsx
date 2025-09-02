@@ -31,6 +31,15 @@ export default function DriverDashboard() {
     const driver = JSON.parse(localStorage.getItem('driverData') || '{}');
     setDriverData(driver);
 
+    // Request notification permission for background tracking alerts
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          console.log('✅ Notification permission granted for background tracking');
+        }
+      });
+    }
+
     // Load existing attendance records for today
     loadTodayRecords(driver.busId);
 
@@ -70,6 +79,15 @@ export default function DriverDashboard() {
     
     // Start enhanced background tracking that continues when driver switches apps
     BackgroundLocationManager.startBackgroundTracking(driverData);
+    
+    // Show notification about background tracking
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🚌 Bus Tracking Active', {
+        body: 'GPS tracking will continue even when you switch apps',
+        icon: '/vite.svg',
+        silent: true
+      });
+    }
     
     const startLocationTracking = () => {
       setIsTrackingLocation(true);
@@ -602,14 +620,14 @@ export default function DriverDashboard() {
               </p>
             </div>
 
-            {/* Student Visibility Status */}
+            {/* Aggressive Mode Status */}
             <div className="p-4 rounded-xl border-2 bg-purple-50 border-purple-300">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-bold text-gray-800">👥 Students</h3>
+                <h3 className="text-sm font-bold text-gray-800">🚀 Aggressive Mode</h3>
                 <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
               </div>
               <p className="text-xs text-purple-700">
-                ✅ Can See Location
+                ✅ App Switch Ready
               </p>
             </div>
           </div>
@@ -652,6 +670,11 @@ export default function DriverDashboard() {
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <span className="font-semibold">🔄 Background Tracking:</span> Your location continues to be shared even when you switch apps, logout, or close the browser.
+              </p>
+            </div>
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-800">
+                <span className="font-semibold">🚀 Aggressive Mode:</span> Enhanced tracking activates automatically when you minimize or switch apps - updates every 2-3 seconds for maximum accuracy.
               </p>
             </div>
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
