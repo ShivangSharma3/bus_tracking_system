@@ -1,105 +1,146 @@
 // Service Worker for Background GPS Tracking
 // This runs independently of the main application
+// NOTE: Service workers cannot access navigator.geolocation directly
+// They receive location data from the main thread and handle persistence
 
-let locationTrackingInterval = null;
 let currentDriverData = null;
 let isTracking = false;
+let lastLocationData = null;
+let persistenceInterval = null;
 
 // Store driver data when received from main thread
 self.addEventListener('message', (event) => {
   const { type, data } = event.data;
   
+  console.log('🔄 Service Worker received message:', type);
+  
   switch (type) {
     case 'START_TRACKING':
-      console.log('🔄 Service Worker: Starting background location tracking');
+      console.log('🔄 Service Worker: Starting background location persistence');
       currentDriverData = data;
-      startBackgroundTracking();
+      startBackgroundPersistence();
       break;
       
     case 'STOP_TRACKING':
-      console.log('⏹️ Service Worker: Stopping background location tracking');
-      stopBackgroundTracking();
+      console.log('⏹️ Service Worker: Stopping background location persistence');
+      stopBackgroundPersistence();
       break;
       
     case 'UPDATE_DRIVER_DATA':
       currentDriverData = data;
       break;
+      
+    case 'LOCATION_DATA':
+      // Receive location data from main thread
+      console.log('📍 Service Worker: Received location data from main thread');
+      lastLocationData = data;
+      handleLocationData(data);
+      break;
+      
+    case 'PING':
+      // Health check from main thread
+      console.log('🏓 Service Worker: Ping received');
+      respondToClient(event, { type: 'PONG', timestamp: Date.now() });
+      break;
   }
 });
 
-function startBackgroundTracking() {
+function startBackgroundPersistence() {
   if (isTracking || !currentDriverData) return;
   
   isTracking = true;
+  console.log('✅ Service Worker: Background persistence started');
   
-  // Track location immediately
-  trackLocation();
-  
-  // Then track every 15 seconds (longer interval for background to save battery)
-  locationTrackingInterval = setInterval(trackLocation, 15000);
+  // Set up periodic backend sync (every 30 seconds)
+  persistenceInterval = setInterval(() => {
+    if (lastLocationData && currentDriverData) {
+      console.log('🔄 Service Worker: Syncing location to backend');
+      sendLocationToBackend(lastLocationData);
+    }
+  }, 30000);
 }
 
-function stopBackgroundTracking() {
+function stopBackgroundPersistence() {
   isTracking = false;
-  if (locationTrackingInterval) {
-    clearInterval(locationTrackingInterval);
-    locationTrackingInterval = null;
+  if (persistenceInterval) {
+    clearInterval(persistenceInterval);
+    persistenceInterval = null;
+  }
+  console.log('⏹️ Service Worker: Background persistence stopped');
+}
+
+function handleLocationData(locationData) {
+  if (!locationData || !currentDriverData) return;
+function handleLocationData(locationData) {
+  if (!locationData || !currentDriverData) return;
+  
+  // Store the latest location
+  lastLocationData = {
+    ...locationData,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Store in cache for immediate access
+  cacheLocationData(lastLocationData);
+  
+  // Send to backend immediately
+  sendLocationToBackend(lastLocationData);
+  
+  // Notify all clients
+  notifyClients({
+    type: 'LOCATION_UPDATE',
+    data: lastLocationData
+  });
+}
+
+async function cacheLocationData(locationData) {
+  try {
+    const cache = await caches.open('bus-location-cache');
+    const response = new Response(JSON.stringify(locationData));
+    await cache.put(`/location/${currentDriverData.busId}`, response);
+    console.log('💾 Service Worker: Location cached');
+  } catch (error) {
+    console.error('❌ Service Worker: Cache error:', error);
   }
 }
 
-function trackLocation() {
-  if (!navigator.geolocation || !currentDriverData) return;
-  
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const locationData = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        timestamp: new Date().toISOString(),
-        busId: currentDriverData.busId,
-        driverName: currentDriverData.name,
-        speed: position.coords.speed || 0,
-        accuracy: position.coords.accuracy,
-        source: 'driver_dashboard' // CRITICAL: Mark as driver GPS
-      };
-      
-      console.log('🚌 Background GPS captured (DRIVER ONLY):', locationData);
-      
-      // Store in cache for immediate access
-      caches.open('bus-location-cache').then(cache => {
-        const response = new Response(JSON.stringify(locationData));
-        cache.put(`/location/${currentDriverData.busId}`, response);
-      });
-      
-      // Send to main thread if available
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'LOCATION_UPDATE',
-            data: locationData
-          });
-        });
-      });
-      
-      // Store in localStorage (accessible across tabs)
-      // Note: Service workers can't access localStorage directly, 
-      // but we'll handle this in the main thread
-      
-    },
-    (error) => {
-      console.error('❌ Background GPS error:', error);
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 30000 // Accept location up to 30 seconds old
+async function sendLocationToBackend(locationData) {
+  try {
+    const backendUrl = 'https://bus-tracking-system-4.onrender.com';
+    const response = await fetch(`${backendUrl}/api/location/update-location/${currentDriverData.busId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(locationData)
+    });
+    
+    if (response.ok) {
+      console.log('✅ Service Worker: Location sent to backend successfully');
+    } else {
+      console.log('⚠️ Service Worker: Backend response not OK:', response.status);
     }
-  );
+  } catch (error) {
+    console.log('⚠️ Service Worker: Backend request failed:', error.message);
+  }
+}
+
+function notifyClients(message) {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage(message);
+    });
+  });
+}
+
+function respondToClient(event, message) {
+  // Send response back to specific client
+  event.ports[0]?.postMessage(message);
 }
 
 // Keep service worker active
 self.addEventListener('fetch', (event) => {
-  // Handle location requests
+  // Handle location cache requests
   if (event.request.url.includes('/api/location/background')) {
     event.respondWith(
       caches.open('bus-location-cache').then(cache => {
@@ -109,4 +150,16 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-console.log('🔧 Background Location Service Worker loaded');
+// Handle service worker installation
+self.addEventListener('install', (event) => {
+  console.log('🔧 Service Worker: Installing location service worker');
+  self.skipWaiting();
+});
+
+// Handle service worker activation
+self.addEventListener('activate', (event) => {
+  console.log('✅ Service Worker: Location service worker activated');
+  event.waitUntil(self.clients.claim());
+});
+
+console.log('🔧 Background Location Service Worker loaded (Fixed Version)');

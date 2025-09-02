@@ -18,12 +18,16 @@ export class BackgroundLocationManager {
         this.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw-location.js');
         console.log('✅ Background location service worker registered');
         
+        // Wait for service worker to be ready
+        await navigator.serviceWorker.ready;
+        
         // Listen for location updates from service worker
         navigator.serviceWorker.addEventListener('message', this.handleServiceWorkerMessage.bind(this));
         
         // Check if driver is already logged in and start tracking
         const driverData = this.getStoredDriverData();
-        if (driverData && driverData.busId) {
+        if (driverData && driverData.busId && driverData.trackingActive) {
+          console.log('🔄 Resuming background tracking for stored driver:', driverData.name);
           await this.startBackgroundTracking(driverData);
         }
         
@@ -35,6 +39,32 @@ export class BackgroundLocationManager {
     } else {
       console.log('⚠️ Service workers not supported, using fallback tracking');
       this.initializeFallbackTracking();
+    }
+  }
+  
+  // Handle messages from service worker
+  static handleServiceWorkerMessage(event) {
+    const { type, data } = event.data;
+    
+    if (type === 'LOCATION_UPDATE') {
+      console.log('📍 Received location update from service worker:', data);
+      // Save the location data received from service worker
+      this.saveLocationDataFromServiceWorker(data);
+    }
+  }
+  
+  // Save location data received from service worker
+  static async saveLocationDataFromServiceWorker(locationData) {
+    try {
+      // Import LocationService to enhance the data
+      const { LocationService } = await import('./locationService.js');
+      
+      // Save using LocationService which handles validation and enhancement
+      await LocationService.saveRealLocation(locationData);
+      
+      console.log('✅ Service worker location data processed and saved');
+    } catch (error) {
+      console.error('❌ Error processing service worker location:', error);
     }
   }
   
@@ -83,12 +113,44 @@ export class BackgroundLocationManager {
     this.clearStoredDriverData();
   }
   
-  // Foreground tracking as backup
+  // Fallback tracking for browsers without service worker support
+  static initializeFallbackTracking() {
+    console.log('🔄 Initializing fallback tracking without service worker');
+    
+    // Check for stored driver data and resume tracking
+    const driverData = this.getStoredDriverData();
+    if (driverData && driverData.trackingActive) {
+      console.log('🔄 Resuming fallback tracking for:', driverData.name);
+      this.startForegroundTracking(driverData);
+      this.setupVisibilityHandling();
+    }
+    
+    // Set up periodic check to ensure tracking continues
+    setInterval(() => {
+      const currentDriverData = this.getStoredDriverData();
+      if (currentDriverData && currentDriverData.trackingActive && !this.trackingInterval) {
+        console.log('🔄 Restarting tracking interval (fallback)');
+        this.startForegroundTracking(currentDriverData);
+      }
+    }, 30000); // Check every 30 seconds
+  }
+  
+  // Enhanced foreground tracking with better error handling
   static startForegroundTracking(driverData) {
-    if (this.trackingInterval) return; // Already tracking
+    if (this.trackingInterval) {
+      console.log('📍 Foreground tracking already active');
+      return; // Already tracking
+    }
+    
+    console.log('🔄 Starting foreground GPS tracking for:', driverData.name);
     
     const trackLocation = () => {
-      if (!navigator.geolocation) return;        navigator.geolocation.getCurrentPosition(
+      if (!navigator.geolocation) {
+        console.error('❌ Geolocation not supported');
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
         (position) => {
           const locationData = {
             lat: position.coords.latitude,
@@ -101,11 +163,29 @@ export class BackgroundLocationManager {
             source: 'driver_dashboard' // CRITICAL: Mark as driver GPS
           };
           
-          console.log('📍 Background Manager GPS (Driver Only):', locationData);
+          console.log('📍 Foreground GPS captured (Driver Only):', locationData);
+          
+          // Save location data locally
           this.saveLocationData(locationData);
+          
+          // Send to service worker for persistence and backend sync
+          if (this.serviceWorkerRegistration && this.serviceWorkerRegistration.active) {
+            this.serviceWorkerRegistration.active.postMessage({
+              type: 'LOCATION_DATA',
+              data: locationData
+            });
+          }
         },
         (error) => {
           console.error('❌ Foreground GPS error:', error);
+          // Try to restart tracking after error
+          setTimeout(() => {
+            const currentDriverData = this.getStoredDriverData();
+            if (currentDriverData && currentDriverData.trackingActive) {
+              console.log('🔄 Restarting tracking after GPS error');
+              this.startForegroundTracking(currentDriverData);
+            }
+          }, 10000);
         },
         {
           enableHighAccuracy: true,
@@ -120,6 +200,7 @@ export class BackgroundLocationManager {
     
     // Track every 10 seconds
     this.trackingInterval = setInterval(trackLocation, 10000);
+    console.log('✅ Foreground tracking interval started');
   }
   
   static stopForegroundTracking() {
@@ -136,35 +217,70 @@ export class BackgroundLocationManager {
   
   // Handle page visibility changes
   static setupVisibilityHandling() {
+    // Handle page visibility changes (tab switching)
     document.addEventListener('visibilitychange', () => {
       const driverData = this.getStoredDriverData();
-      if (!driverData) return;
+      if (!driverData || !driverData.trackingActive) return;
       
       if (document.hidden) {
-        console.log('📱 Page hidden - ensuring background tracking continues');
-        // Page is hidden, ensure service worker is tracking
-        if (this.serviceWorkerRegistration) {
-          this.serviceWorkerRegistration.active?.postMessage({
+        console.log('📱 Page hidden - GPS continues via foreground tracking with service worker persistence');
+        // Continue foreground tracking but ensure service worker is active for persistence
+        if (this.serviceWorkerRegistration && this.serviceWorkerRegistration.active) {
+          this.serviceWorkerRegistration.active.postMessage({
+            type: 'START_TRACKING',
+            data: driverData
+          });
+          console.log('🔄 Service worker persistence activated');
+        }
+      } else {
+        console.log('📱 Page visible - ensuring foreground tracking continues');
+        // Ensure foreground tracking is active
+        if (!this.trackingInterval) {
+          this.startForegroundTracking(driverData);
+        }
+        
+        // Keep service worker active for backup
+        if (this.serviceWorkerRegistration && this.serviceWorkerRegistration.active) {
+          this.serviceWorkerRegistration.active.postMessage({
             type: 'START_TRACKING',
             data: driverData
           });
         }
-      } else {
-        console.log('📱 Page visible - resuming foreground tracking');
-        // Page is visible, resume foreground tracking
-        this.startForegroundTracking(driverData);
       }
     });
     
-    // Handle page unload
+    // Handle page unload (user closes tab or navigates away)
     window.addEventListener('beforeunload', () => {
       const driverData = this.getStoredDriverData();
-      if (driverData && this.serviceWorkerRegistration) {
-        console.log('🚪 Page unloading - transferring to background tracking');
-        this.serviceWorkerRegistration.active?.postMessage({
-          type: 'START_TRACKING',
-          data: driverData
-        });
+      if (driverData && driverData.trackingActive && this.serviceWorkerRegistration) {
+        console.log('🚪 Page unloading - ensuring service worker continues');
+        if (this.serviceWorkerRegistration.active) {
+          this.serviceWorkerRegistration.active.postMessage({
+            type: 'START_TRACKING',
+            data: driverData
+          });
+        }
+      }
+    });
+    
+    // Handle app switching on mobile (iOS/Android)
+    window.addEventListener('pagehide', () => {
+      const driverData = this.getStoredDriverData();
+      if (driverData && driverData.trackingActive && this.serviceWorkerRegistration) {
+        console.log('📱 App switching - maintaining foreground GPS tracking');
+        // Keep foreground tracking active since service worker can't access GPS
+      }
+    });
+    
+    // Handle app resuming on mobile
+    window.addEventListener('pageshow', () => {
+      const driverData = this.getStoredDriverData();
+      if (driverData && driverData.trackingActive) {
+        console.log('📱 App resumed - ensuring tracking continues');
+        // Ensure foreground tracking is active
+        if (!this.trackingInterval) {
+          this.startForegroundTracking(driverData);
+        }
       }
     });
   }

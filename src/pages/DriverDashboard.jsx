@@ -4,6 +4,7 @@ import { AttendanceDB } from '../utils/attendanceDB.js';
 import { LocationService } from '../utils/locationService.js';
 import { ExcelExportService } from '../utils/excelExport.js';
 import { BackgroundLocationManager } from '../utils/backgroundLocationManager.js';
+import { EnhancedBackgroundLocationManager } from '../utils/enhancedBackgroundLocationManager.js';
 
 export default function DriverDashboard() {
   const [students, setStudents] = useState([]);
@@ -62,75 +63,34 @@ export default function DriverDashboard() {
     }
   }, [driverData]);
 
-  // GPS Location tracking useEffect - Enhanced with Background Tracking
+  // GPS Location tracking useEffect - Enhanced with Improved Background Tracking
   useEffect(() => {
     if (!driverData?.busId) return;
 
-    console.log('🚀 Starting enhanced background location tracking for driver:', driverData.name);
+    console.log('🚀 Starting ENHANCED background location tracking for driver:', driverData.name);
     
-    // Start background tracking that continues even when driver switches screens
-    BackgroundLocationManager.startBackgroundTracking(driverData);
+    // Start enhanced background tracking that truly continues when driver switches screens
+    EnhancedBackgroundLocationManager.startEnhancedTracking(driverData);
     
     const startLocationTracking = () => {
       setIsTrackingLocation(true);
       setLocationError('');
 
       if (navigator.geolocation) {
-        const trackLocation = () => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const location = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                timestamp: new Date().toISOString(),
-                busId: driverData.busId,
-                driverName: driverData.name,
-                speed: position.coords.speed || 0,
-                accuracy: position.coords.accuracy,
-                source: 'driver_dashboard'
-              };
-
-              console.log('📍 Driver GPS location captured (Dashboard):', location);
-              console.log('🌐 Backend URL:', import.meta.env.VITE_BACKEND_URL);
-              setCurrentLocation(location);
-              
-              // Send location to backend API AND localStorage for cross-device sync
-              LocationService.saveRealLocation(location)
-                .then(result => {
-                  if (result.success) {
-                    console.log('✅ Location posted to backend API successfully');
-                  } else {
-                    console.log('⚠️ Backend API post failed, using localStorage only');
-                  }
-                })
-                .catch(error => {
-                  console.log('⚠️ Location API error:', error.message);
-                });
-              
-              setLocationError('');
-            },
-            (error) => {
-              console.error('Location error:', error);
-              setLocationError(`GPS Error: ${error.message}`);
-              setIsTrackingLocation(false);
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 30000
-            }
-          );
-        };
-
-        // Track location immediately
-        trackLocation();
+        console.log('✅ Enhanced GPS tracking active - continues across tab switches');
         
-        // Then track every 10 seconds (foreground tracking)
-        const locationInterval = setInterval(trackLocation, 10000);
+        // The enhanced manager handles all GPS tracking
+        // This just monitors for UI updates
+        const statusInterval = setInterval(() => {
+          const status = EnhancedBackgroundLocationManager.getTrackingStatus();
+          if (status.timeSinceLastLocation > 60000) { // More than 1 minute
+            console.log('⚠️ No GPS update for over 1 minute');
+          }
+        }, 30000);
 
         return () => {
-          clearInterval(locationInterval);
-          console.log('🔄 Dashboard location tracking stopped (background continues)');
+          clearInterval(statusInterval);
+          console.log('🔄 Dashboard status monitoring stopped (enhanced tracking continues)');
         };
       } else {
         setLocationError('GPS not supported by this device');
@@ -140,10 +100,10 @@ export default function DriverDashboard() {
 
     startLocationTracking();
     
-    // Cleanup function - DON'T stop background tracking when component unmounts
+    // Cleanup function - DON'T stop enhanced tracking when component unmounts
     return () => {
-      console.log('ℹ️ DriverDashboard unmounting - background tracking continues');
-      // Background tracking continues even when dashboard is closed
+      console.log('ℹ️ DriverDashboard unmounting - ENHANCED tracking continues across tab switches');
+      // Enhanced tracking continues even when dashboard is closed
     };
   }, [driverData]);
 
@@ -434,8 +394,8 @@ export default function DriverDashboard() {
     if (shouldStop) {
       console.log('🛑 Driver manually stopping location tracking');
       
-      // Stop all background tracking
-      BackgroundLocationManager.stopBackgroundTracking();
+      // Stop enhanced background tracking
+      EnhancedBackgroundLocationManager.stopEnhancedTracking();
       
       // Clear location data
       localStorage.removeItem(`latest_location_${driverData.busId}`);

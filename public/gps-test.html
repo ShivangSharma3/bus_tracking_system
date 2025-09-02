@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background GPS Tracking Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        .status {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .success { background: rgba(46, 160, 67, 0.3); }
+        .error { background: rgba(220, 53, 69, 0.3); }
+        .warning { background: rgba(255, 193, 7, 0.3); }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .log {
+            background: black;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .location-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .metric {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Background GPS Tracking Test</h1>
+        <p>This page will test if GPS tracking continues when you switch tabs or apps.</p>
+        
+        <div class="status-grid">
+            <div id="wakeLockStatus" class="status warning">
+                <span>🔒 Wake Lock:</span>
+                <span>Checking...</span>
+            </div>
+            <div id="gpsStatus" class="status warning">
+                <span>📍 GPS Access:</span>
+                <span>Checking...</span>
+            </div>
+            <div id="trackingStatus" class="status warning">
+                <span>🔄 Tracking Active:</span>
+                <span>Not Started</span>
+            </div>
+            <div id="visibilityStatus" class="status success">
+                <span>👁️ Page Visibility:</span>
+                <span>Visible</span>
+            </div>
+        </div>
+        
+        <div class="location-data">
+            <div class="metric">
+                <h3>📊 Location Updates</h3>
+                <div id="updateCount">0</div>
+            </div>
+            <div class="metric">
+                <h3>⏱️ Last Update</h3>
+                <div id="lastUpdate">Never</div>
+            </div>
+            <div class="metric">
+                <h3>📱 Updates While Hidden</h3>
+                <div id="hiddenUpdates">0</div>
+            </div>
+            <div class="metric">
+                <h3>🌐 Current Location</h3>
+                <div id="currentLocation">Unknown</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startTracking" onclick="startGPSTracking()">🚀 Start GPS Tracking</button>
+            <button id="stopTracking" onclick="stopGPSTracking()" disabled>⏹️ Stop Tracking</button>
+            <button onclick="requestWakeLock()">🔒 Request Wake Lock</button>
+            <button onclick="simulateTabSwitch()">📱 Simulate Tab Switch</button>
+            <button onclick="clearLog()">🧹 Clear Log</button>
+        </div>
+        
+        <h3>📝 Real-Time Log</h3>
+        <div id="log" class="log"></div>
+        
+        <h3>🧪 Test Instructions</h3>
+        <ol>
+            <li><strong>Click "Start GPS Tracking"</strong> and allow location permissions</li>
+            <li><strong>Wait for location updates</strong> to start appearing (every 8 seconds)</li>
+            <li><strong>Open a new tab</strong> and switch to it for 30+ seconds</li>
+            <li><strong>Return to this tab</strong> and check if updates continued</li>
+            <li><strong>Look at "Updates While Hidden"</strong> - should be > 0 if working</li>
+        </ol>
+        
+        <div class="status" id="testResult">
+            <span>🎯 Test Result:</span>
+            <span>Run the test to see results</span>
+        </div>
+    </div>
+
+    <script>
+        let gpsWatchId = null;
+        let updateCount = 0;
+        let hiddenUpdateCount = 0;
+        let wakeLock = null;
+        let isTracking = false;
+        
+        // Log function
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // Update status indicators
+        function updateStatus(elementId, status, isSuccess) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${isSuccess ? 'success' : 'error'}`;
+            element.children[1].textContent = status;
+        }
+        
+        // Check Wake Lock support
+        async function checkWakeLock() {
+            if ('wakeLock' in navigator) {
+                updateStatus('wakeLockStatus', 'Supported', true);
+                log('✅ Wake Lock API is supported');
+                return true;
+            } else {
+                updateStatus('wakeLockStatus', 'Not Supported', false);
+                log('❌ Wake Lock API not supported');
+                return false;
+            }
+        }
+        
+        // Request Wake Lock
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    log('🔒 Wake lock acquired successfully');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        log('🔓 Wake lock was released');
+                    });
+                } catch (error) {
+                    log('❌ Wake lock request failed: ' + error.message);
+                }
+            }
+        }
+        
+        // Start GPS tracking
+        async function startGPSTracking() {
+            if (!navigator.geolocation) {
+                log('❌ Geolocation not supported');
+                updateStatus('gpsStatus', 'Not Supported', false);
+                return;
+            }
+            
+            log('🚀 Starting GPS tracking...');
+            
+            // Request wake lock first
+            await requestWakeLock();
+            
+            // Start continuous GPS tracking
+            const trackLocation = () => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        updateCount++;
+                        
+                        const location = {
+                            lat: position.coords.latitude.toFixed(6),
+                            lng: position.coords.longitude.toFixed(6),
+                            accuracy: Math.round(position.coords.accuracy),
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Update UI
+                        document.getElementById('updateCount').textContent = updateCount;
+                        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                        document.getElementById('currentLocation').textContent = `${location.lat}, ${location.lng}`;
+                        
+                        // Count hidden updates
+                        if (document.hidden) {
+                            hiddenUpdateCount++;
+                            document.getElementById('hiddenUpdates').textContent = hiddenUpdateCount;
+                            log(`📍 GPS update #${updateCount} (HIDDEN): ${location.lat}, ${location.lng} (±${location.accuracy}m)`);
+                        } else {
+                            log(`📍 GPS update #${updateCount} (VISIBLE): ${location.lat}, ${location.lng} (±${location.accuracy}m)`);
+                        }
+                        
+                        updateStatus('gpsStatus', 'Active', true);
+                        updateStatus('trackingStatus', `${updateCount} updates`, true);
+                    },
+                    (error) => {
+                        log('❌ GPS error: ' + error.message);
+                        updateStatus('gpsStatus', 'Error: ' + error.message, false);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 5000
+                    }
+                );
+            };
+            
+            // Track immediately
+            trackLocation();
+            
+            // Then track every 8 seconds
+            gpsWatchId = setInterval(trackLocation, 8000);
+            
+            isTracking = true;
+            document.getElementById('startTracking').disabled = true;
+            document.getElementById('stopTracking').disabled = false;
+            
+            log('✅ GPS tracking started (8-second intervals)');
+        }
+        
+        // Stop GPS tracking
+        function stopGPSTracking() {
+            if (gpsWatchId) {
+                clearInterval(gpsWatchId);
+                gpsWatchId = null;
+            }
+            
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            
+            isTracking = false;
+            document.getElementById('startTracking').disabled = false;
+            document.getElementById('stopTracking').disabled = true;
+            
+            updateStatus('trackingStatus', 'Stopped', false);
+            log('⏹️ GPS tracking stopped');
+        }
+        
+        // Simulate tab switch
+        function simulateTabSwitch() {
+            log('📱 Simulating tab switch...');
+            
+            // Simulate page becoming hidden
+            Object.defineProperty(document, 'hidden', {
+                value: true,
+                writable: true,
+                configurable: true
+            });
+            
+            updateStatus('visibilityStatus', 'Hidden (Simulated)', false);
+            
+            // Trigger visibility change event
+            document.dispatchEvent(new Event('visibilitychange'));
+            
+            setTimeout(() => {
+                // Simulate page becoming visible again
+                Object.defineProperty(document, 'hidden', {
+                    value: false,
+                    writable: true,
+                    configurable: true
+                });
+                
+                updateStatus('visibilityStatus', 'Visible', true);
+                document.dispatchEvent(new Event('visibilitychange'));
+                
+                log('📱 Simulated visibility restored');
+                
+                // Check results
+                if (hiddenUpdateCount > 0) {
+                    document.getElementById('testResult').innerHTML = 
+                        '<span>🎯 Test Result:</span><span style="color: #28a745;">SUCCESS - GPS continued while hidden!</span>';
+                    log('🎉 SUCCESS: GPS tracking continued while tab was hidden');
+                } else {
+                    document.getElementById('testResult').innerHTML = 
+                        '<span>🎯 Test Result:</span><span style="color: #dc3545;">FAILED - GPS stopped when hidden</span>';
+                    log('❌ FAILED: GPS tracking stopped when tab was hidden');
+                }
+            }, 15000); // Wait 15 seconds while "hidden"
+        }
+        
+        // Clear log
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // Page visibility handling
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                updateStatus('visibilityStatus', 'Hidden', false);
+                log('📱 Page is now HIDDEN');
+            } else {
+                updateStatus('visibilityStatus', 'Visible', true);
+                log('📱 Page is now VISIBLE');
+            }
+        });
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            log('🔧 Background GPS Tracking Test loaded');
+            checkWakeLock();
+        });
+        
+        // Prevent accidental page unload during test
+        window.addEventListener('beforeunload', (e) => {
+            if (isTracking) {
+                e.preventDefault();
+                e.returnValue = 'GPS tracking is active. Are you sure you want to leave?';
+            }
+        });
+    </script>
+</body>
+</html>
