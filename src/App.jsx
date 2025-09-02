@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import reactLogo from './assets/react.svg'
 // import viteLogo from '/vite.svg'
 import './App.css'
@@ -13,9 +13,20 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import DriverDashboard from "./pages/DriverDashboard.jsx";
 import AttendanceRecords from "./pages/AttendanceRecords.jsx";
 import LiveMap from "./pages/LiveMap.jsx";
+import { BackgroundLocationManager } from './utils/backgroundLocationManager.js';
 
 function App() {
   const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    // Initialize BackgroundLocationManager when app starts
+    BackgroundLocationManager.initialize();
+    
+    return () => {
+      // Cleanup if needed (though we want tracking to persist)
+      console.log('App unmounting - background tracking continues');
+    };
+  }, []);
 
   return (
     <Router

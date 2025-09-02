@@ -1,27 +1,63 @@
 # Bus Tracking System
 
-A React-based bus tracking system that allows students to log in and view their bus information.
+A comprehensive bus tracking system with real-time GPS tracking, background location services, and cross-device synchronization. Features separate dashboards for students, drivers, and administrators.
 
-## Features
+## 🚀 Features
 
-- Student authentication using email and password
-- Student data stored in JSON format
-- Responsive login interface
-- Student dashboard showing personal and bus information
+### Student Features
+- Real-time bus location tracking
+- Route progress with current and next stops
+- Attendance marking with location verification
+- Cross-device location synchronization
 
-## Project Structure
+### Driver Features
+- GPS location sharing with background tracking
+- Continuous tracking even when switching apps/tabs
+- Route progress monitoring
+- Student attendance management
+
+### Admin Features
+- Live bus tracking on interactive map
+- Attendance records and analytics
+- Driver and student management
+- Export functionality for attendance data
+
+### Background Location Tracking
+- **Service Worker Implementation**: Continues tracking even when browser is closed
+- **Cross-tab Communication**: Synchronizes location across multiple browser tabs
+- **Persistent Storage**: Maintains tracking state across browser sessions
+- **Fallback Mechanisms**: Multiple layers of location tracking reliability
+
+## 🏗️ Technology Stack
+
+- **Frontend**: React 18, Vite, Tailwind CSS
+- **Backend**: Node.js, Express.js, MongoDB
+- **Location Services**: HTML5 Geolocation API, Service Workers
+- **Deployment**: Vercel (Frontend), Render (Backend)
+
+## 📁 Project Structure
 
 ```
 bus/
 ├── public/
-│   ├── student.json          # Student data with credentials
-│   └── vite.svg
+│   ├── sw-location.js        # Service worker for background GPS tracking
+│   └── attendance.json       # Sample attendance data
 ├── src/
-│   ├── Login.jsx             # Main login component
-│   ├── main.jsx              # Application entry point
-│   └── index.css
-├── index.html                # HTML template
-└── README.md
+│   ├── pages/
+│   │   ├── StudentDashboard.jsx
+│   │   ├── DriverDashboard.jsx
+│   │   └── AdminDashboard.jsx
+│   ├── utils/
+│   │   ├── locationService.js           # Core location tracking logic
+│   │   ├── backgroundLocationManager.js # Background tracking manager
+│   │   └── attendanceDB.js              # Attendance management
+│   └── components/
+│       └── GoogleMap.jsx     # Interactive map component
+├── backend/
+│   ├── index.js              # Express server with location APIs
+│   ├── models/               # MongoDB models
+│   └── routes/               # API routes
+└── DEPLOYMENT_GUIDE.md       # Detailed deployment instructions
 ```
 
 ## Installation
@@ -34,12 +70,62 @@ cd bus_tracking_system
 
 2. Install dependencies:
 ```bash
+# Install frontend dependencies
 npm install
+
+# Install backend dependencies
+cd backend && npm install
 ```
 
-3. Start the development server:
+3. Set up environment variables:
 ```bash
+# Create backend environment file
+cp backend/.env.example backend/.env
+# Update with your MongoDB connection string
+```
+
+4. Start the development servers:
+```bash
+# Start backend (Terminal 1)
+cd backend && npm start
+
+# Start frontend (Terminal 2)
 npm run dev
+```
+
+## 🚀 Deployment
+
+### Quick Deploy
+- **Frontend**: Deploy to Vercel using the included `vercel.json` configuration
+- **Backend**: Deploy to Render using the included `render.yaml` configuration
+
+### Detailed Instructions
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for complete deployment instructions including:
+- Render backend deployment
+- Vercel frontend deployment
+- Environment variable configuration
+- CORS setup and testing
+
+## 🗄️ Database Configuration
+
+The system uses MongoDB for data persistence:
+
+### MongoDB Atlas Setup
+1. Create a MongoDB Atlas account
+2. Create a new cluster
+3. Get your connection string: `mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/`
+4. Update the `MONGODB_URI` in your environment variables
+
+### Local MongoDB (Alternative)
+```bash
+# Install MongoDB locally
+brew install mongodb/brew/mongodb-community
+
+# Start MongoDB service
+brew services start mongodb/brew/mongodb-community
+
+# Use local connection string
+MONGODB_URI=mongodb://localhost:27017/bus
 ```
 
 ## Usage

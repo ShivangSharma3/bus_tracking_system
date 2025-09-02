@@ -9,7 +9,10 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "start": "cd backend && npm start",
-    "start:backend": "cd backend && npm start"
+    "start:backend": "cd backend && npm start",
+    "build:check": "npm run build && npm run preview",
+    "deploy:frontend": "npm run build",
+    "deploy:backend": "cd backend && npm install --production"
   },
   "dependencies": {
     "react": "^18.2.0",

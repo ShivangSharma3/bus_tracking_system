@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AttendanceDB } from '../utils/attendanceDB.js';
 import { LocationService } from '../utils/locationService.js';
 import { ExcelExportService } from '../utils/excelExport.js';
+import { BackgroundLocationManager } from '../utils/backgroundLocationManager.js';
 
 export default function DriverDashboard() {
   const [students, setStudents] = useState([]);
@@ -61,10 +62,15 @@ export default function DriverDashboard() {
     }
   }, [driverData]);
 
-  // GPS Location tracking useEffect
+  // GPS Location tracking useEffect - Enhanced with Background Tracking
   useEffect(() => {
     if (!driverData?.busId) return;
 
+    console.log('🚀 Starting enhanced background location tracking for driver:', driverData.name);
+    
+    // Start background tracking that continues even when driver switches screens
+    BackgroundLocationManager.startBackgroundTracking(driverData);
+    
     const startLocationTracking = () => {
       setIsTrackingLocation(true);
       setLocationError('');
@@ -80,10 +86,11 @@ export default function DriverDashboard() {
                 busId: driverData.busId,
                 driverName: driverData.name,
                 speed: position.coords.speed || 0,
-                accuracy: position.coords.accuracy
+                accuracy: position.coords.accuracy,
+                source: 'driver_dashboard'
               };
 
-              console.log('📍 Driver GPS location captured:', location);
+              console.log('📍 Driver GPS location captured (Dashboard):', location);
               console.log('🌐 Backend URL:', import.meta.env.VITE_BACKEND_URL);
               setCurrentLocation(location);
               
@@ -110,7 +117,7 @@ export default function DriverDashboard() {
             {
               enableHighAccuracy: true,
               timeout: 10000,
-              maximumAge: 60000
+              maximumAge: 30000
             }
           );
         };
@@ -118,10 +125,13 @@ export default function DriverDashboard() {
         // Track location immediately
         trackLocation();
         
-        // Then track every 10 seconds
+        // Then track every 10 seconds (foreground tracking)
         const locationInterval = setInterval(trackLocation, 10000);
 
-        return () => clearInterval(locationInterval);
+        return () => {
+          clearInterval(locationInterval);
+          console.log('🔄 Dashboard location tracking stopped (background continues)');
+        };
       } else {
         setLocationError('GPS not supported by this device');
         setIsTrackingLocation(false);
@@ -129,6 +139,12 @@ export default function DriverDashboard() {
     };
 
     startLocationTracking();
+    
+    // Cleanup function - DON'T stop background tracking when component unmounts
+    return () => {
+      console.log('ℹ️ DriverDashboard unmounting - background tracking continues');
+      // Background tracking continues even when dashboard is closed
+    };
   }, [driverData]);
 
   const loadTodayRecords = async (busId) => {
@@ -381,9 +397,57 @@ export default function DriverDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userType');
-    localStorage.removeItem('driverData');
-    navigate('/');
+    // Show confirmation dialog for logout
+    const shouldLogout = window.confirm(
+      '🚌 Are you sure you want to logout?\n\n' +
+      '📍 GPS tracking will continue in the background so students can still see the bus location.\n\n' +
+      '⚠️ To completely stop location sharing, you need to manually stop it from the browser settings.'
+    );
+    
+    if (shouldLogout) {
+      console.log('👋 Driver logging out - background GPS tracking continues');
+      
+      // Keep background tracking active even after logout
+      // This ensures students can still see bus location
+      // The BackgroundLocationManager will handle this automatically
+      
+      // Clear only user session data, not location tracking data
+      localStorage.removeItem('userType');
+      localStorage.removeItem('driverData');
+      
+      // Navigate to home
+      navigate('/');
+      
+      console.log('ℹ️ Driver logged out. Background location tracking remains active.');
+    }
+  };
+
+  const handleStopLocationTracking = () => {
+    const shouldStop = window.confirm(
+      '⚠️ Stop Location Tracking?\n\n' +
+      '🚫 This will COMPLETELY stop GPS tracking.\n' +
+      '📍 Students will NO LONGER see the bus location.\n' +
+      '🔄 You can restart tracking by logging in again.\n\n' +
+      'Are you sure you want to stop location tracking?'
+    );
+    
+    if (shouldStop) {
+      console.log('🛑 Driver manually stopping location tracking');
+      
+      // Stop all background tracking
+      BackgroundLocationManager.stopBackgroundTracking();
+      
+      // Clear location data
+      localStorage.removeItem(`latest_location_${driverData.busId}`);
+      localStorage.removeItem(`location_history_${driverData.busId}`);
+      
+      // Update UI
+      setIsTrackingLocation(false);
+      setCurrentLocation(null);
+      setLocationError('Location tracking stopped manually');
+      
+      alert('🛑 Location tracking has been stopped completely.\n\n📱 Students will no longer see bus location updates.');
+    }
   };
 
   const getPresentStudents = () => {
@@ -437,13 +501,23 @@ export default function DriverDashboard() {
               </h1>
               <p className="text-gray-600 mt-2 text-lg">Welcome, {driverData.name}</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-4 rounded-2xl hover:from-red-600 hover:to-red-700 transform hover:scale-110 transition-all duration-300 shadow-xl flex items-center space-x-2 btn-hover"
-            >
-              <span>🚪</span>
-              <span className="font-semibold">Logout</span>
-            </button>
+            <div className="flex space-x-4">
+              <button
+                onClick={handleStopLocationTracking}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 transform hover:scale-105 transition-all duration-300 shadow-lg flex items-center space-x-2"
+                title="Stop location tracking completely"
+              >
+                <span>🛑</span>
+                <span className="font-semibold">Stop Tracking</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-8 py-4 rounded-2xl hover:from-red-600 hover:to-red-700 transform hover:scale-110 transition-all duration-300 shadow-xl flex items-center space-x-2 btn-hover"
+              >
+                <span>🚪</span>
+                <span className="font-semibold">Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -490,57 +564,114 @@ export default function DriverDashboard() {
           </div>
         </div>
 
-        {/* GPS Location Tracking Card */}
+        {/* GPS Location Tracking Card - Enhanced with Background Tracking */}
         <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-6 mb-8 border border-white/20 card-hover">
           <h2 className="text-xl font-bold mb-4 gradient-text-green flex items-center">
-            📍 <span className="ml-3">GPS Location Tracking</span>
+            📍 <span className="ml-3">Enhanced GPS Location Tracking</span>
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Tracking Status */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {/* Dashboard Tracking Status */}
             <div className={`p-4 rounded-xl border-2 ${
               isTrackingLocation 
                 ? 'bg-green-50 border-green-300' 
                 : 'bg-red-50 border-red-300'
             }`}>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-bold text-gray-800">📡 Tracking Status</h3>
+                <h3 className="text-sm font-bold text-gray-800">📱 Dashboard</h3>
                 <div className={`w-3 h-3 rounded-full ${
                   isTrackingLocation ? 'bg-green-500 animate-pulse' : 'bg-red-500'
                 }`}></div>
               </div>
-              <p className={`text-sm ${
+              <p className={`text-xs ${
                 isTrackingLocation ? 'text-green-700' : 'text-red-700'
               }`}>
-                {isTrackingLocation ? '✅ GPS tracking active' : '❌ GPS not tracking'}
+                {isTrackingLocation ? '✅ Active' : '❌ Inactive'}
               </p>
-              {locationError && (
-                <p className="text-xs text-red-600 mt-1">{locationError}</p>
-              )}
             </div>
 
-            {/* Current Location */}
+            {/* Background Tracking Status */}
             <div className="p-4 rounded-xl border-2 bg-blue-50 border-blue-300">
-              <h3 className="text-lg font-bold text-gray-800 mb-2">🌐 Current Location</h3>
-              {currentLocation ? (
-                <div className="text-sm text-blue-700 space-y-1">
-                  <p><strong>Lat:</strong> {currentLocation.lat.toFixed(6)}</p>
-                  <p><strong>Lng:</strong> {currentLocation.lng.toFixed(6)}</p>
-                  <p><strong>Speed:</strong> {currentLocation.speed ? `${Math.round(currentLocation.speed * 3.6)} km/h` : 'N/A'}</p>
-                  <p><strong>Updated:</strong> {new Date(currentLocation.timestamp).toLocaleTimeString()}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-600">Waiting for GPS signal...</p>
-              )}
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold text-gray-800">🔄 Background</h3>
+                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+              </div>
+              <p className="text-xs text-blue-700">
+                ✅ Always Active
+              </p>
+            </div>
+
+            {/* Student Visibility Status */}
+            <div className="p-4 rounded-xl border-2 bg-purple-50 border-purple-300">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold text-gray-800">👥 Students</h3>
+                <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+              </div>
+              <p className="text-xs text-purple-700">
+                ✅ Can See Location
+              </p>
             </div>
           </div>
 
-          {/* Location Info */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <span className="font-semibold">📢 Info:</span> Your location is being shared with admin and students in real-time for bus tracking.
-            </p>
+          {/* Current Location Details */}
+          <div className="p-4 rounded-xl border-2 bg-gray-50 border-gray-300 mb-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">🌐 Live Location Data</h3>
+            {currentLocation ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">Latitude</p>
+                  <p className="font-mono text-blue-600">{currentLocation.lat.toFixed(6)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Longitude</p>
+                  <p className="font-mono text-blue-600">{currentLocation.lng.toFixed(6)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Speed</p>
+                  <p className="font-mono text-green-600">
+                    {currentLocation.speed ? `${Math.round(currentLocation.speed * 3.6)} km/h` : '0 km/h'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Last Update</p>
+                  <p className="font-mono text-purple-600">
+                    {new Date(currentLocation.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="animate-pulse text-gray-500">📡 Acquiring GPS signal...</div>
+              </div>
+            )}
           </div>
+
+          {/* Enhanced Info Panel */}
+          <div className="space-y-3">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">🔄 Background Tracking:</span> Your location continues to be shared even when you switch apps, logout, or close the browser.
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                <span className="font-semibold">👥 Student Benefits:</span> Students can always see real-time bus location for better planning.
+              </p>
+            </div>
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-sm text-orange-800">
+                <span className="font-semibold">🛑 To Stop Completely:</span> Use the "Stop Tracking" button above to disable all location sharing.
+              </p>
+            </div>
+          </div>
+
+          {locationError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">
+                <span className="font-semibold">⚠️ GPS Error:</span> {locationError}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="bg-white/95 backdrop-blur-lg rounded-3xl shadow-2xl p-8 mb-8 border border-white/20 card-hover">

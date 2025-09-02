@@ -8,7 +8,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        value: mongodb+srv://vishaljaincseaiml2022:MONGO%40PWD@cluster0.d8lb6oj.mongodb.net/bus?retryWrites=true&w=majority&appName=Cluster0
+        value: mongodb+srv://vishmngpwd@cluster0.d8lb6oj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+      - key: MONGO_URI
+        value: mongodb+srv://vishmngpwd@cluster0.d8lb6oj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       - key: PORT
         value: 3001
       - key: FRONTEND_URL
