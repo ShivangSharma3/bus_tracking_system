@@ -5,12 +5,12 @@ const isDevelopment = import.meta.env.MODE === 'development';
 // API Base URLs
 export const API_BASE_URL = isDevelopment 
   ? 'http://localhost:3001'
-  : (import.meta.env.VITE_BACKEND_URL || 'https://bus-tracking-system-1-gh4s.onrender.com');
+  : (import.meta.env.VITE_BACKEND_URL || 'https://bus-tracking-system-4.onrender.com');
 
 // WebSocket URLs
 export const WS_BASE_URL = isDevelopment
   ? 'ws://localhost:3001'
-  : (import.meta.env.VITE_WS_URL || 'wss://bus-tracking-system-1-gh4s.onrender.com');
+  : (import.meta.env.VITE_WS_URL || 'wss://bus-tracking-system-4.onrender.com');
 
 // App Configuration
 export const APP_CONFIG = {

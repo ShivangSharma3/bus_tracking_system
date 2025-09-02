@@ -6,6 +6,6 @@
     }
   ],
   "env": {
-    "VITE_BACKEND_URL": "https://bus-tracking-system-1-gh4s.onrender.com"
+    "VITE_BACKEND_URL": "https://bus-tracking-system-4.onrender.com"
   }
 }

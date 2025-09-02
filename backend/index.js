@@ -19,6 +19,7 @@ app.use(cors({
     "http://localhost:5174",
     "https://college-bus-tracking-system-lime.vercel.app",
     "https://bus-tracking-system-bice.vercel.app",
+    "https://bus-tracking-system-x9n6.vercel.app",
     process.env.FRONTEND_URL
   ].filter(Boolean),  // Remove undefined values
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
