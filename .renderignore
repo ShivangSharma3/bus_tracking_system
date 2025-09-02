@@ -1,0 +1,35 @@
+# Development files
+*.md
+eslint.config.js
+.eslintrc.*
+.env*
+.git*
+yarn.lock
+package-lock.json
+
+# Exclude all loose JS files in root (keep only package.json, vite.config.js, etc.)
+create-*
+debug-*
+final-*
+load-*
+sample-*
+test-*
+update-*
+verify-*
+
+# Source files (only dist should be served)
+src/
+backend/
+bus/
+
+# Test files
+*.test.js
+*.spec.js
+
+# Node.js files (not needed for static site)
+node_modules/
+.npm
+.yarn
+
+# Build artifacts (will be regenerated)
+dist/
