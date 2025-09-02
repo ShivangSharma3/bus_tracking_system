@@ -60,10 +60,10 @@ function trackLocation() {
         driverName: currentDriverData.name,
         speed: position.coords.speed || 0,
         accuracy: position.coords.accuracy,
-        source: 'background_service_worker'
+        source: 'driver_dashboard' // CRITICAL: Mark as driver GPS
       };
       
-      console.log('📍 Background GPS captured:', locationData);
+      console.log('🚌 Background GPS captured (DRIVER ONLY):', locationData);
       
       // Store in cache for immediate access
       caches.open('bus-location-cache').then(cache => {

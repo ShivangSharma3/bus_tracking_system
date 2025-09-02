@@ -88,9 +88,7 @@ export class BackgroundLocationManager {
     if (this.trackingInterval) return; // Already tracking
     
     const trackLocation = () => {
-      if (!navigator.geolocation) return;
-      
-      navigator.geolocation.getCurrentPosition(
+      if (!navigator.geolocation) return;        navigator.geolocation.getCurrentPosition(
         (position) => {
           const locationData = {
             lat: position.coords.latitude,
@@ -100,10 +98,10 @@ export class BackgroundLocationManager {
             driverName: driverData.name,
             speed: position.coords.speed || 0,
             accuracy: position.coords.accuracy,
-            source: 'foreground_fallback'
+            source: 'driver_dashboard' // CRITICAL: Mark as driver GPS
           };
           
-          console.log('📍 Foreground GPS backup:', locationData);
+          console.log('📍 Background Manager GPS (Driver Only):', locationData);
           this.saveLocationData(locationData);
         },
         (error) => {

@@ -269,13 +269,30 @@ export class LocationService {
 
   static async saveRealLocation(locationData) {
     try {
+      // 🚨 CRITICAL: ONLY ACCEPT DRIVER GPS LOCATIONS 🚨
+      console.log('🔍 Validating location source:', locationData);
+      
+      // REJECT if not from driver dashboard
+      if (!locationData.source || locationData.source !== 'driver_dashboard') {
+        console.log('❌ REJECTED: Not from driver dashboard. Source:', locationData.source);
+        return { success: false, error: 'Only driver GPS locations are accepted' };
+      }
+
+      // REJECT if missing driver identification
+      if (!locationData.driverName || !locationData.busId) {
+        console.log('❌ REJECTED: Missing driver identification');
+        return { success: false, error: 'Missing driver identification' };
+      }
+
+      console.log('✅ ACCEPTED: Valid driver GPS location from:', locationData.driverName);
+
       // Get bus info
       const busInfo = this.busInfo[locationData.busId] || {};
       
       // Calculate enhanced route information
       const routeProgress = this.getRouteProgress(locationData.lat, locationData.lng, locationData.busId);
       
-      // Enhanced location data with route information
+      // Enhanced location data with route information - DRIVER GPS ONLY
       const enhancedLocationData = {
         ...locationData,
         busNumber: busInfo.busNumber,
@@ -286,7 +303,10 @@ export class LocationService {
         routeProgress: routeProgress.percentage,
         progressStatus: routeProgress.status,
         distanceToCurrentStop: routeProgress.distanceToCurrentStop,
-        distanceToNextStop: routeProgress.distanceToNextStop
+        distanceToNextStop: routeProgress.distanceToNextStop,
+        locationSource: 'DRIVER_GPS_ONLY',
+        isDriverLocation: true,
+        validatedAt: new Date().toISOString()
       };
 
       // Save to backend API (optional - fallback to localStorage if backend not available)
