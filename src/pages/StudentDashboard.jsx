@@ -65,7 +65,7 @@ export default function StudentDashboard() {
         if (driverLocation) {
           console.log('🚌 Driver location found for student view:', driverLocation);
           
-          // Enhanced location with bus info
+          // Enhanced location with bus info and staleness indicators
           const busInfo = LocationService.busInfo[student.bus.$oid];
           const enhancedLocation = {
             ...driverLocation,
@@ -75,14 +75,24 @@ export default function StudentDashboard() {
             driverName: busInfo?.driver || driverLocation.driverName || 'Unknown Driver',
             isRealLocation: driverLocation.isRealLocation || false,
             locationSource: driverLocation.locationSource || 'Driver GPS',
+            isStale: driverLocation.isStale || driverLocation.staleLocation || false,
+            ageInSeconds: driverLocation.ageInSeconds || 0,
             lastUpdated: driverLocation.lastUpdated ? 
               new Date(driverLocation.lastUpdated).toLocaleTimeString() : 
               new Date().toLocaleTimeString()
           };
           
-          console.log('✅ Using location for student dashboard:', enhancedLocation);
-          setStudentBusLocation(enhancedLocation);
-          console.log('Driver GPS location loaded:', enhancedLocation);
+          // Only update location if it's different from current (prevent unnecessary re-renders)
+          const currentLocationKey = studentBusLocation ? 
+            `${studentBusLocation.lat}-${studentBusLocation.lng}-${studentBusLocation.timestamp}` : '';
+          const newLocationKey = `${enhancedLocation.lat}-${enhancedLocation.lng}-${enhancedLocation.timestamp}`;
+          
+          if (currentLocationKey !== newLocationKey) {
+            console.log('✅ Updating student dashboard with new location:', enhancedLocation);
+            setStudentBusLocation(enhancedLocation);
+          } else {
+            console.log('📍 Location unchanged, skipping update to prevent flicker');
+          }
           
           // Debug route progress calculation
           if (enhancedLocation.currentStop && student.bus?.stops) {
@@ -261,8 +271,21 @@ export default function StudentDashboard() {
                         {studentData.bus?.$oid === '66d0123456a1b2c3d4e5f601' ? 'BUS-001' : 'BUS-002'}
                       </h3>
                       <div className="flex items-center">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                        <span className="text-green-600 font-semibold">Live GPS</span>
+                        <div className={`w-3 h-3 rounded-full mr-2 ${
+                          studentBusLocation.isStale || studentBusLocation.staleLocation 
+                            ? 'bg-orange-500 animate-pulse' 
+                            : 'bg-green-500 animate-pulse'
+                        }`}></div>
+                        <span className={`font-semibold ${
+                          studentBusLocation.isStale || studentBusLocation.staleLocation 
+                            ? 'text-orange-600' 
+                            : 'text-green-600'
+                        }`}>
+                          {studentBusLocation.isStale || studentBusLocation.staleLocation 
+                            ? `Last Known GPS ${studentBusLocation.ageInSeconds ? `(${studentBusLocation.ageInSeconds}s ago)` : ''}`
+                            : 'Live GPS'
+                          }
+                        </span>
                       </div>
                     </div>
 
@@ -296,13 +319,28 @@ export default function StudentDashboard() {
                         </h4>
                         <div className="flex items-center space-x-2">
                           <div className={`w-3 h-3 rounded-full animate-pulse ${
-                            studentBusLocation.isRealLocation ? 'bg-green-500' : 'bg-blue-500'
+                            studentBusLocation.isStale || studentBusLocation.staleLocation 
+                              ? 'bg-orange-500' 
+                              : studentBusLocation.isRealLocation ? 'bg-green-500' : 'bg-blue-500'
                           }`}></div>
                           <span className={`font-semibold ${
-                            studentBusLocation.isRealLocation ? 'text-green-600' : 'text-blue-600'
+                            studentBusLocation.isStale || studentBusLocation.staleLocation 
+                              ? 'text-orange-600' 
+                              : studentBusLocation.isRealLocation ? 'text-green-600' : 'text-blue-600'
                           }`}>
-                            {studentBusLocation.locationSource || 'Live'}
+                            {studentBusLocation.isStale || studentBusLocation.staleLocation 
+                              ? 'Last Known Location'
+                              : (studentBusLocation.locationSource || 'Live')
+                            }
                           </span>
+                          {(studentBusLocation.isStale || studentBusLocation.staleLocation) && studentBusLocation.ageInSeconds && (
+                            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                              {studentBusLocation.ageInSeconds < 60 
+                                ? `${studentBusLocation.ageInSeconds}s ago`
+                                : `${Math.round(studentBusLocation.ageInSeconds / 60)}m ago`
+                              }
+                            </span>
+                          )}
                         </div>
                       </div>
 

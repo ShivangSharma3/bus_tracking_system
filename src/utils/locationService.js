@@ -73,12 +73,16 @@ export class LocationService {
     return null;
   }
 
-  // Student-specific method - only returns driver location or campus default
+  // Student-specific method - only returns driver location with persistence
   static async getStudentViewLocation(busId) {
     // Try to get driver's real location first
     const driverLocation = await this.getRealLocation(busId);
     if (driverLocation) {
       console.log('🚌 Driver location found for student view:', driverLocation);
+      
+      // Store this as the last known good location for persistence
+      localStorage.setItem(`last_known_driver_location_${busId}`, JSON.stringify(driverLocation));
+      
       return {
         lat: driverLocation.lat,
         lng: driverLocation.lng,
@@ -99,18 +103,35 @@ export class LocationService {
       };
     }
 
-    // No driver location - return campus default
+    // No fresh driver location - try to get last known driver location
+    console.log('⚠️ No fresh driver location, checking for last known location...');
+    const lastKnownLocation = localStorage.getItem(`last_known_driver_location_${busId}`);
+    if (lastKnownLocation) {
+      const parsedLocation = JSON.parse(lastKnownLocation);
+      console.log('📍 Using last known driver location to prevent jumping to campus');
+      
+      return {
+        ...parsedLocation,
+        timestamp: new Date(parsedLocation.timestamp).getTime(),
+        lastUpdated: parsedLocation.timestamp,
+        isRealLocation: false,
+        locationSource: 'Last Known Driver GPS',
+        staleLocation: true // Flag to indicate this is not fresh
+      };
+    }
+
+    // Only show campus if no driver has EVER shared location
     const route = this.busRoutes[busId];
     const busInfo = this.busInfo[busId];
     
     if (route && route.length > 0) {
       const campusLocation = route[0]; // First stop is campus
-      console.log('🏫 No driver GPS, showing campus default for student');
+      console.log('🏫 No driver location history, showing campus default');
       
       return {
         lat: campusLocation.lat,
         lng: campusLocation.lng,
-        currentStop: 'Arrived at MIET Campus',
+        currentStop: 'At MIET Campus',
         nextStop: 'Waiting for driver to start sharing location',
         routeProgress: 0,
         progressStatus: 'waiting',
@@ -616,6 +637,11 @@ export class LocationService {
             const data = await response.json();
             if (data.success && data.location) {
               console.log('✅ Got FRESH location from backend API:', data.location);
+              
+              // Cache this fresh location to prevent jumping back to old locations
+              localStorage.setItem(`latest_location_${busId}`, JSON.stringify(data.location));
+              localStorage.setItem(`last_known_driver_location_${busId}`, JSON.stringify(data.location));
+              
               return data.location;
             } else {
               console.log('⚠️ Backend API returned no location data');
@@ -630,11 +656,25 @@ export class LocationService {
         console.log('ℹ️ Backend URL not configured, using localStorage only');
       }
 
-      // Fallback to localStorage only if backend is not available
+      // Fallback to localStorage - use latest cached location
       const latest = localStorage.getItem(`latest_location_${busId}`);
       if (latest) {
-        console.log('📦 Using localStorage fallback (same device only)');
-        return JSON.parse(latest);
+        const parsedLocation = JSON.parse(latest);
+        const locationAge = Date.now() - new Date(parsedLocation.timestamp).getTime();
+        
+        // If location is less than 2 minutes old, use it
+        if (locationAge < 120000) { // 2 minutes
+          console.log('📦 Using fresh localStorage location (age:', Math.round(locationAge/1000), 'seconds)');
+          return parsedLocation;
+        } else {
+          console.log('⏰ localStorage location is stale (age:', Math.round(locationAge/1000), 'seconds), keeping for persistence');
+          // Still return stale location to prevent jumping, but mark it as stale
+          return {
+            ...parsedLocation,
+            isStale: true,
+            ageInSeconds: Math.round(locationAge/1000)
+          };
+        }
       }
       
       console.log('❌ No location data found (backend or localStorage)');
@@ -650,7 +690,30 @@ export class LocationService {
     for (const busId of Object.keys(this.busRoutes)) {
       const location = await this.getRealLocation(busId);
       if (location) {
-        locations.push(location);
+        // Add metadata to help with location persistence
+        const enhancedLocation = {
+          ...location,
+          busId,
+          hasValidLocation: true,
+          isStale: location.isStale || false,
+          ageInSeconds: location.ageInSeconds || 0
+        };
+        locations.push(enhancedLocation);
+      } else {
+        // Check if we have any last known location for this bus
+        const lastKnown = localStorage.getItem(`last_known_driver_location_${busId}`);
+        if (lastKnown) {
+          const parsedLocation = JSON.parse(lastKnown);
+          console.log('📍 Using last known location for bus', busId, 'to prevent disappearing from map');
+          locations.push({
+            ...parsedLocation,
+            busId,
+            hasValidLocation: false,
+            isStale: true,
+            isLastKnown: true,
+            locationSource: 'Last Known Driver GPS'
+          });
+        }
       }
     }
     return locations;

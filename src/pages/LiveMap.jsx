@@ -34,19 +34,47 @@ export default function LiveMap() {
     const intervalId = LocationService.startLocationUpdates((locations) => {
       const updatedBuses = buses.map(bus => {
         const locationData = locations.find(loc => loc.busId === bus.id);
-        return {
-          ...bus,
-          lat: locationData?.location?.lat || 28.6139,
-          lng: locationData?.location?.lng || 77.2090,
-          lastUpdate: new Date().toLocaleTimeString(),
-          speed: locationData?.location?.speed || 0
-        };
+        
+        // Only update if we have valid location data
+        if (locationData && locationData.lat && locationData.lng) {
+          return {
+            ...bus,
+            lat: locationData.lat,
+            lng: locationData.lng,
+            lastUpdate: new Date().toLocaleTimeString(),
+            speed: locationData.speed || 0,
+            hasRealLocation: true,
+            isStale: locationData.isStale || false,
+            locationSource: locationData.locationSource || 'Driver GPS'
+          };
+        } else {
+          // Keep existing location if available, don't jump to default
+          const existingBus = busLocations.find(b => b.id === bus.id);
+          if (existingBus && existingBus.hasRealLocation) {
+            console.log('📍 Keeping existing location for bus', bus.busNumber, 'to prevent jumping');
+            return {
+              ...existingBus,
+              lastUpdate: 'No recent update',
+              hasRealLocation: true,
+              isStale: true
+            };
+          } else {
+            // No location data and no existing location - mark as no location
+            return {
+              ...bus,
+              hasRealLocation: false,
+              noLocation: true,
+              lastUpdate: 'No GPS data'
+            };
+          }
+        }
       });
+      
       setBusLocations(updatedBuses);
     }, 5000); // Update every 5 seconds
 
     return () => LocationService.stopLocationUpdates(intervalId);
-  }, []);
+  }, [busLocations]); // Add busLocations as dependency to access existing data
 
   if (error) {
     return (
