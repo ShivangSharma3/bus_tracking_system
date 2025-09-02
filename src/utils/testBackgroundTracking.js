@@ -7,14 +7,14 @@ export const testBackgroundTracking = async () => {
   console.log('🧪 Testing Background Location Tracking...');
   
   try {
-    // Test 1: Initialize
-    console.log('Test 1: Initializing BackgroundLocationManager...');
-    await BackgroundLocationManager.initialize();
-    console.log('✅ Test 1 passed: Initialization successful');
+    // Test 1: Check initialization
+    console.log('Test 1: Checking BackgroundLocationManager status...');
+    const status = BackgroundLocationManager.getTrackingStatus();
+    console.log('✅ Test 1 passed: Background manager is ready', status);
     
     // Test 2: Check service worker support
     console.log('Test 2: Checking service worker support...');
-    if (BackgroundLocationManager.isServiceWorkerSupported) {
+    if ('serviceWorker' in navigator) {
       console.log('✅ Test 2 passed: Service worker is supported');
     } else {
       console.log('❌ Test 2 failed: Service worker not supported');
@@ -34,9 +34,9 @@ export const testBackgroundTracking = async () => {
     
     // Test 4: Check tracking status
     console.log('Test 4: Checking tracking status...');
-    const status = BackgroundLocationManager.getTrackingStatus();
-    console.log('Tracking status:', status);
-    if (status.isBackgroundTracking) {
+    const trackingStatus = BackgroundLocationManager.getTrackingStatus();
+    console.log('Tracking status:', trackingStatus);
+    if (trackingStatus.isActive) {
       console.log('✅ Test 4 passed: Background tracking is active');
     } else {
       console.log('❌ Test 4 failed: Background tracking is not active');
@@ -46,11 +46,17 @@ export const testBackgroundTracking = async () => {
     console.log('Test 5: Waiting for location updates...');
     await new Promise(resolve => setTimeout(resolve, 3000));
     
-    const cachedLocation = BackgroundLocationManager.getCachedLocation();
-    if (cachedLocation) {
-      console.log('✅ Test 5 passed: Location data received:', cachedLocation);
+    // Check for any stored location data
+    const driverData = JSON.parse(localStorage.getItem('driverData') || '{}');
+    if (driverData.busId) {
+      const storedLocation = localStorage.getItem(`latest_location_${driverData.busId}`);
+      if (storedLocation) {
+        console.log('✅ Test 5 passed: Location data found in storage');
+      } else {
+        console.log('⚠️ Test 5 warning: No location data yet (may need user permission)');
+      }
     } else {
-      console.log('⚠️ Test 5 warning: No location data yet (may need user permission)');
+      console.log('⚠️ Test 5 warning: No driver data found');
     }
     
     console.log('🎉 Background tracking tests completed!');

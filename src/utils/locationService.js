@@ -369,6 +369,12 @@ export class LocationService {
 
       localStorage.setItem(key, JSON.stringify(existingData));
       localStorage.setItem(`latest_location_${locationData.busId}`, JSON.stringify(enhancedLocationData));
+      
+      // CRITICAL: Store last known driver location for jump prevention
+      localStorage.setItem(`last_known_driver_location_${locationData.busId}`, JSON.stringify({
+        ...enhancedLocationData,
+        persistedAt: new Date().toISOString()
+      }));
 
       return { success: true };
     } catch (error) {

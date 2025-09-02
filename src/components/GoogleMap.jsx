@@ -250,17 +250,21 @@ export default function GoogleMap({ busLocations, selectedBus, center, zoom = 15
 
     setMarkers(newMarkers);
 
-    // Update the map center only if there's a significant location change
-    if (memoizedBusLocations.length > 0) {
+    // CRITICAL FIX: Only center map on first load, not on every update to prevent jumping
+    const isFirstLoad = !lastUpdateTime;
+    if (memoizedBusLocations.length > 0 && isFirstLoad) {
       const firstBus = memoizedBusLocations[0];
+      console.log('🗺️ Centering map on first load at:', { lat: firstBus.lat, lng: firstBus.lng });
       map.setCenter({ lat: firstBus.lat, lng: firstBus.lng });
       
       // Auto-open info window for first bus only on first load
       setTimeout(() => {
-        if (newMarkers[0] && newMarkers[0].infoWindow && !lastUpdateTime) {
+        if (newMarkers[0] && newMarkers[0].infoWindow) {
           newMarkers[0].infoWindow.open(map, newMarkers[0]);
         }
       }, 1000);
+    } else if (memoizedBusLocations.length > 0) {
+      console.log('📍 Updating markers without centering to prevent jumping');
     }
 
     // Update the last update time

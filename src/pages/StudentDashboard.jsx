@@ -57,7 +57,7 @@ export default function StudentDashboard() {
     // Load student's bus location using real user location for route progress
     const loadStudentBusLocation = async () => {
       if (student.bus?.$oid) {
-        console.log('� Loading driver location for student dashboard...');
+        console.log('🔍 Loading driver location for student dashboard...');
         
         // ONLY get driver's GPS location for cross-device sync
         const driverLocation = await LocationService.getStudentViewLocation(student.bus.$oid);
@@ -82,16 +82,29 @@ export default function StudentDashboard() {
               new Date().toLocaleTimeString()
           };
           
-          // Only update location if it's different from current (prevent unnecessary re-renders)
+          // CRITICAL: Only update if location actually changed to prevent jumping
           const currentLocationKey = studentBusLocation ? 
-            `${studentBusLocation.lat}-${studentBusLocation.lng}-${studentBusLocation.timestamp}` : '';
-          const newLocationKey = `${enhancedLocation.lat}-${enhancedLocation.lng}-${enhancedLocation.timestamp}`;
+            `${studentBusLocation.lat.toFixed(6)}-${studentBusLocation.lng.toFixed(6)}-${studentBusLocation.timestamp}` : '';
+          const newLocationKey = `${enhancedLocation.lat.toFixed(6)}-${enhancedLocation.lng.toFixed(6)}-${enhancedLocation.timestamp}`;
           
-          if (currentLocationKey !== newLocationKey) {
-            console.log('✅ Updating student dashboard with new location:', enhancedLocation);
+          // Additional check for significant location change (more than 10 meters)
+          const hasSignificantChange = !studentBusLocation || 
+            LocationService.calculateDistance(
+              studentBusLocation.lat, studentBusLocation.lng,
+              enhancedLocation.lat, enhancedLocation.lng
+            ) > 0.01; // 10 meters threshold
+          
+          if (currentLocationKey !== newLocationKey || hasSignificantChange) {
+            console.log('✅ Updating student dashboard with NEW location:', {
+              oldLocation: currentLocationKey,
+              newLocation: newLocationKey,
+              driver: enhancedLocation.driverName,
+              source: enhancedLocation.locationSource,
+              hasSignificantChange
+            });
             setStudentBusLocation(enhancedLocation);
           } else {
-            console.log('📍 Location unchanged, skipping update to prevent flicker');
+            console.log('📍 Location unchanged and no significant movement, keeping current position to prevent jumping');
           }
           
           // Debug route progress calculation

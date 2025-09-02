@@ -19,8 +19,8 @@ function App() {
   const [count, setCount] = useState(0)
 
   useEffect(() => {
-    // Initialize BackgroundLocationManager when app starts
-    BackgroundLocationManager.initialize();
+    // BackgroundLocationManager auto-initializes on import
+    console.log('🚀 App started - Enhanced Background Location Manager ready');
     
     return () => {
       // Cleanup if needed (though we want tracking to persist)

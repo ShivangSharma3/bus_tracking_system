@@ -35,18 +35,37 @@ export default function LiveMap() {
       const updatedBuses = buses.map(bus => {
         const locationData = locations.find(loc => loc.busId === bus.id);
         
-        // Only update if we have valid location data
+        // Only update if we have valid location data AND it represents a real change
         if (locationData && locationData.lat && locationData.lng) {
-          return {
-            ...bus,
-            lat: locationData.lat,
-            lng: locationData.lng,
-            lastUpdate: new Date().toLocaleTimeString(),
-            speed: locationData.speed || 0,
-            hasRealLocation: true,
-            isStale: locationData.isStale || false,
-            locationSource: locationData.locationSource || 'Driver GPS'
-          };
+          const existingBus = busLocations.find(b => b.id === bus.id);
+          
+          // Check for significant location change to prevent micro-jumps
+          const hasSignificantChange = !existingBus || !existingBus.lat || 
+            LocationService.calculateDistance(
+              existingBus.lat, existingBus.lng,
+              locationData.lat, locationData.lng
+            ) > 0.005; // 5 meter threshold for LiveMap
+          
+          if (hasSignificantChange) {
+            console.log('🗺️ LiveMap: Updating bus location with significant change:', bus.busNumber);
+            return {
+              ...bus,
+              lat: locationData.lat,
+              lng: locationData.lng,
+              lastUpdate: new Date().toLocaleTimeString(),
+              speed: locationData.speed || 0,
+              hasRealLocation: true,
+              isStale: locationData.isStale || false,
+              locationSource: locationData.locationSource || 'Driver GPS'
+            };
+          } else if (existingBus) {
+            console.log('🗺️ LiveMap: Keeping existing location to prevent micro-jumping:', bus.busNumber);
+            return {
+              ...existingBus,
+              lastUpdate: new Date().toLocaleTimeString(), // Update timestamp only
+              isStale: locationData.isStale || false
+            };
+          }
         } else {
           // Keep existing location if available, don't jump to default
           const existingBus = busLocations.find(b => b.id === bus.id);
